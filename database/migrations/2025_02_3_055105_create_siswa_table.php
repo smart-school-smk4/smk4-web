@@ -19,7 +19,7 @@ return new class extends Migration
             $table->string('foto_siswa');
             $table->enum('jenis_kelamin', ['L', 'P']);
             $table->text('alamat');
-            $table->integer('no_hp');
+            $table->string('no_hp');
             $table->string('email')->unique();
             $table->foreignId('id_jurusan')->constrained('jurusan')->onDelete('cascade');
             $table->foreignId('id_kelas')->constrained('kelas')->onDelete('cascade');

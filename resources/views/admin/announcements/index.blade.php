@@ -20,6 +20,12 @@
                 <span class="w-2 h-2 rounded-full bg-gray-400 mr-2"></span>
                 <span>Memeriksa koneksi...</span>
             </div>
+            <a href="{{ route('announcements.history') }}" class="px-3 py-1 rounded-lg text-sm font-medium bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Riwayat
+            </a>
         </div>
     </div>
 
@@ -77,8 +83,8 @@
                                         <div class="flex items-center">
                                             <div class="flex-shrink-0 h-5 w-5 rounded-full border-2 border-gray-300 peer-checked:border-blue-500 peer-checked:bg-blue-500 peer-checked:border-4 transition-all duration-200 mr-3"></div>
                                             <div>
-                                                <h3 class="font-medium text-gray-800">Mikrofon Manual</h3>
-                                                <p class="text-sm text-gray-500">Gunakan mikrofon langsung</p>
+                                                <h3 class="font-medium text-gray-800">Pengumuman Manual</h3>
+                                                <p class="text-sm text-gray-500">Aktifkan relay audio di ruangan terpilih</p>
                                             </div>
                                         </div>
                                     </div>
@@ -93,11 +99,11 @@
                                 <button type="button" id="select-all" class="text-xs text-blue-600 hover:text-blue-800 font-medium transition-colors duration-200">Pilih Semua</button>
                             </div>
                             <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                                @foreach($rooms as $room)
+                                @foreach($ruangans as $ruangan)
                                 <label class="relative cursor-pointer">
-                                    <input type="checkbox" name="rooms[]" value="{{ $room }}" class="peer absolute opacity-0">
+                                    <input type="checkbox" name="ruangans[]" value="{{ $ruangan }}" class="peer absolute opacity-0">
                                     <div class="px-3 py-2 border border-gray-200 rounded-lg text-center transition-all duration-150 peer-checked:bg-blue-50 peer-checked:border-blue-300 peer-checked:text-blue-700 peer-checked:font-medium hover:bg-gray-50">
-                                        {{ $room }}
+                                        {{ $ruangan }}
                                     </div>
                                 </label>
                                 @endforeach
@@ -113,16 +119,6 @@
                                     <span id="char-count">0</span>/500
                                 </div>
                             </div>
-                        </div>
-
-                        <!-- Manual Mic Duration -->
-                        <div id="manual-fields" class="hidden mb-6 transition-all duration-300">
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Durasi (detik)</label>
-                            <div class="flex items-center space-x-2">
-                                <input type="range" name="duration" min="5" max="300" value="60" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
-                                <span id="duration-value" class="text-sm font-medium text-gray-700 w-12 text-center">60</span>
-                            </div>
-                            <p class="mt-1 text-xs text-gray-500">Durasi: 5-300 detik (5 menit)</p>
                         </div>
 
                         <!-- Submit Button -->
@@ -141,19 +137,55 @@
 
         <!-- Right Sidebar -->
         <div class="space-y-6">
-            <!-- Audio Routing Control Card -->
-            <div id="stop-manual-section" class="hidden bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden h-full flex flex-col">
+            <!-- System Status Card -->
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <div class="bg-gradient-to-r from-green-500 to-green-600 px-6 py-4">
+                    <h2 class="text-xl font-semibold text-white flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                        Status Sistem
+                    </h2>
+                </div>
+                <div class="p-6 space-y-4">
+                    <!-- Active Announcement Indicator -->
+                    <div id="active-indicator" class="flex items-start">
+                        <div class="flex-shrink-0 mt-1">
+                            <div class="h-3 w-3 rounded-full bg-gray-300"></div>
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-sm font-medium text-gray-700">Tidak ada pengumuman aktif</p>
+                            <p class="text-xs text-gray-500">Siap menerima pengumuman baru</p>
+                        </div>
+                    </div>
+
+                    <!-- Active Rooms Indicator -->
+                    <div id="active-rooms-indicator" class="hidden">
+                        <div class="flex items-center justify-between mb-2">
+                            <p class="text-sm font-medium text-gray-700">Ruangan Aktif</p>
+                            <span class="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
+                                <span id="active-count">0</span> aktif
+                            </span>
+                        </div>
+                        <div id="active-rooms-badges" class="flex flex-wrap gap-2">
+                            <!-- Badge ruangan akan muncul di sini -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Manual Control Card -->
+            <div id="stop-manual-section" class="hidden bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <div class="bg-gradient-to-r from-amber-500 to-orange-500 px-6 py-4">
                     <h2 class="text-xl font-semibold text-white flex items-center">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" clip-rule="evenodd" />
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                         </svg>
-                        Kontrol Routing Audio
+                        Kontrol Ruangan
                     </h2>
                 </div>
-                <div class="p-6 flex-grow">
-                    <div class="bg-amber-50 border-l-4 border-amber-400 p-4 rounded-lg mb-4 animate-pulse">
+                <div class="p-6">
+                    <div class="bg-amber-50 border-l-4 border-amber-400 p-4 rounded-lg mb-4">
                         <div class="flex">
                             <div class="flex-shrink-0">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-amber-500" viewBox="0 0 20 20" fill="currentColor">
@@ -162,60 +194,17 @@
                             </div>
                             <div class="ml-3">
                                 <p class="text-sm text-amber-700">
-                                    <span class="font-medium">Perhatian!</span> Mikrofon aktif sedang di-routing ke speaker ruangan.
+                                    <span class="font-medium">Perhatian!</span> Relay audio sedang aktif di ruangan terpilih.
                                 </p>
                             </div>
                         </div>
                     </div>
-                    <div class="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg mb-4">
-                        <div class="flex-shrink-0 p-2 bg-blue-100 rounded-lg text-blue-600">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                            </svg>
-                        </div>
-                        <div>
-                            <p class="text-sm font-medium text-gray-800">Status Mikrofon</p>
-                            <p class="text-sm text-gray-500">Sedang aktif dan terhubung</p>
-                        </div>
-                    </div>
-                    <div id="timer-display" class="hidden text-center mb-4">
-                        <div class="inline-flex items-center justify-center">
-                            <div class="relative">
-                                <svg class="w-16 h-16" viewBox="0 0 36 36">
-                                    <circle cx="18" cy="18" r="16" fill="none" class="stroke-gray-200" stroke-width="2"></circle>
-                                    <circle cx="18" cy="18" r="16" fill="none" class="stroke-blue-500" stroke-width="2" stroke-dasharray="100" stroke-dashoffset="0" id="countdown-circle"></circle>
-                                </svg>
-                                <span id="countdown" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-lg font-bold text-gray-800">60</span>
-                            </div>
-                        </div>
-                        <p class="text-xs text-gray-500 mt-2">Sisa waktu pengumuman</p>
-                    </div>
-                </div>
-                <div class="p-6 pt-0">
                     <button id="stop-routing-btn" class="w-full px-4 py-3 bg-gradient-to-r from-amber-500 to-orange-500 rounded-xl text-sm font-medium text-white hover:from-amber-600 hover:to-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 shadow-sm transition-all duration-300 flex items-center justify-center transform hover:scale-105">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" clip-rule="evenodd" />
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                         </svg>
-                        Putuskan Routing Audio
+                        Matikan Semua Ruangan
                     </button>
-                </div>
-            </div>
-
-            <!-- Active Announcements Card -->
-            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden transition-all duration-300 hover:shadow-md">
-                <div class="bg-gradient-to-r from-green-500 to-green-600 px-6 py-4">
-                    <h2 class="text-xl font-semibold text-white flex items-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                        </svg>
-                        Pengumuman Aktif
-                    </h2>
-                </div>
-                <div class="p-6">
-                    <div id="active-announcements-container">
-                        <p class="text-sm text-gray-500">Memuat pengumuman aktif...</p>
-                    </div>
                 </div>
             </div>
         </div>
@@ -231,27 +220,23 @@
     from { opacity: 0; transform: translateY(-10px); }
     to { opacity: 1; transform: translateY(0); }
 }
-
-#countdown-circle {
-    transition: stroke-dashoffset 1s linear;
-    transform: rotate(-90deg);
-    transform-origin: 50% 50%;
-}
 </style>
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
 $(document).ready(function() {
+    $.ajaxSetup({
+        headers: {
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+        }
+    });
+
     // Base URL for API endpoints
     const baseUrl = '/admin/pengumuman';
 
     // Initialize UI state
     function initUI() {
-        // Set initial state for manual fields
-        $('input[name="duration"]').val(60);
-        $('#duration-value').text(60);
-        
         // Check MQTT status immediately
         updateMqttStatus();
         
@@ -260,6 +245,9 @@ $(document).ready(function() {
         
         // Trigger change event to set initial view
         $('input[name="type"]').trigger('change');
+        
+        // Load active announcements
+        loadActiveAnnouncements();
     }
 
     // MQTT Status Indicator
@@ -293,11 +281,6 @@ $(document).ready(function() {
         });
     }
 
-    // Update duration value display
-    $('input[name="duration"]').on('input', function() {
-        $('#duration-value').text($(this).val());
-    });
-
     // Character counter
     $('textarea[name="content"]').on('input', function() {
         const count = $(this).val().length;
@@ -309,13 +292,17 @@ $(document).ready(function() {
     $('input[name="type"]').change(function() {
         const isManual = $(this).val() === 'manual';
         $('#tts-fields').toggleClass('hidden', isManual);
-        $('#manual-fields').toggleClass('hidden', !isManual);
-        $('#stop-manual-section').toggleClass('hidden', !isManual);
+        $('#submit-btn').html(`
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                ${isManual ? '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />' : '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />'}
+            </svg>
+            ${isManual ? 'Hidupkan Ruangan' : 'Kirim Pengumuman'}
+        `);
     });
 
     // Select all rooms
     $('#select-all').click(function() {
-        const checkboxes = $('input[name="rooms[]"]');
+        const checkboxes = $('input[name="ruangans[]"]');
         const allChecked = checkboxes.length === checkboxes.filter(':checked').length;
         checkboxes.prop('checked', !allChecked).trigger('change');
         $(this).text(allChecked ? 'Pilih Semua' : 'Batalkan Semua');
@@ -327,48 +314,32 @@ $(document).ready(function() {
         
         const formData = $(this).serializeArray();
         const isManual = $('input[name="type"]:checked').val() === 'manual';
-        const duration = isManual ? parseInt($('input[name="duration"]').val()) : 0;
-        const selectedRooms = $('input[name="rooms[]"]:checked').map(function() {
-            return $(this).closest('label').text().trim();
+        const selectedRuangans = $('input[name="ruangans[]"]:checked').map(function() {
+            return $(this).val();
         }).get();
 
-        if (selectedRooms.length === 0) {
-            Swal.fire({
-                icon: 'error',
-                title: 'Peringatan',
-                text: 'Silakan pilih minimal satu ruangan',
-                confirmButtonColor: '#3b82f6'
-            });
+        if (selectedRuangans.length === 0) {
+            showAlert('error', 'Peringatan', 'Silakan pilih minimal satu ruangan');
             return;
         }
 
-        Swal.fire({
-            title: 'Konfirmasi Pengiriman',
-            html: `<div class="text-left">
-                <p>Anda akan mengirim pengumuman <strong>${isManual ? 'manual' : 'TTS'}</strong> ke:</p>
-                <ul class="list-disc pl-5 mt-2 mb-2 max-h-40 overflow-y-auto">
-                    ${selectedRooms.map(room => `<li>${room}</li>`).join('')}
-                </ul>
-                ${isManual ? `<p>Durasi: <strong>${duration} detik</strong></p>` : ''}
-            </div>`,
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonText: 'Ya, Kirim Sekarang',
-            cancelButtonText: 'Batal',
-            reverseButtons: true,
-            customClass: {
-                confirmButton: 'px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md',
-                cancelButton: 'px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-md'
-            }
-        }).then((result) => {
-            if (result.isConfirmed) {
+        const confirmMessage = isManual 
+            ? `Anda akan menghidupkan relay audio di ${selectedRuangans.length} ruangan`
+            : `Anda akan mengirim pengumuman TTS ke ${selectedRuangans.length} ruangan`;
+
+        showConfirmation(
+            'Konfirmasi',
+            confirmMessage,
+            '',
+            function() {
                 const submitBtn = $('#submit-btn');
+                const buttonText = isManual ? 'Menghidupkan...' : 'Mengirim...';
                 submitBtn.prop('disabled', true).html(`
                     <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    Mengirim...
+                    ${buttonText}
                 `);
 
                 $.ajax({
@@ -376,58 +347,37 @@ $(document).ready(function() {
                     method: 'POST',
                     data: formData,
                     success: function(response) {
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Berhasil!',
-                            text: response.message || 'Pengumuman berhasil dikirim',
-                            timer: 2000,
-                            showConfirmButton: false
-                        });
+                        showAlert('success', 'Berhasil!', response.message);
                         
                         if (isManual) {
-                            startCountdown(duration);
+                            $('#stop-manual-section').removeClass('hidden');
+                            updateActiveRooms(selectedRuangans);
                         }
                         
-                        // Refresh active announcements
                         loadActiveAnnouncements();
                     },
-                    error: function(xhr) {
-                        const errorMsg = xhr.responseJSON?.message || 'Terjadi kesalahan saat mengirim pengumuman';
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Gagal!',
-                            text: errorMsg,
-                            timer: 2000,
-                            showConfirmButton: false
-                        });
-                    },
+                    error: handleAjaxError,
                     complete: function() {
                         submitBtn.prop('disabled', false).html(`
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                                ${isManual ? '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />' : '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />'}
                             </svg>
-                            Kirim Pengumuman
+                            ${isManual ? 'Hidupkan Ruangan' : 'Kirim Pengumuman'}
                         `);
                     }
                 });
             }
-        });
+        );
     });
 
     // Stop routing button
     $('#stop-routing-btn').click(function(e) {
         e.preventDefault();
-        
-        Swal.fire({
-            title: 'Konfirmasi',
-            text: 'Anda yakin ingin memutus routing audio?',
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonText: 'Ya, Putuskan',
-            cancelButtonText: 'Batal',
-            reverseButtons: true
-        }).then((result) => {
-            if (result.isConfirmed) {
+        showConfirmation(
+            'Konfirmasi',
+            'Anda yakin ingin mematikan semua relay ruangan?',
+            '',
+            function() {
                 const stopBtn = $('#stop-routing-btn');
                 stopBtn.prop('disabled', true).html(`
                     <svg class="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -436,77 +386,28 @@ $(document).ready(function() {
                     </svg>
                     Memproses...
                 `);
-
                 $.post(`${baseUrl}/stop-manual`, function(response) {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Berhasil!',
-                        text: response.message || 'Routing audio berhasil diputus',
-                        timer: 2000,
-                        showConfirmButton: false
-                    });
-                    $('#timer-display').hide();
-                    
-                    // Refresh active announcements
+                    showAlert('success', 'Berhasil!', response.message);
+                    $('#stop-manual-section').addClass('hidden');
                     loadActiveAnnouncements();
-                }).fail(function(xhr) {
-                    const errorMsg = xhr.responseJSON?.message || 'Gagal memutus routing audio';
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Gagal!',
-                        text: errorMsg,
-                        timer: 2000,
-                        showConfirmButton: false
-                    });
-                }).always(function() {
+                }).fail(handleAjaxError).always(function() {
                     stopBtn.prop('disabled', false).html(`
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" clip-rule="evenodd" />
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                         </svg>
-                        Putuskan Routing Audio
+                        Matikan Semua Ruangan
                     `);
                 });
             }
-        });
+        );
     });
-
-    // Countdown timer with circular progress
-    function startCountdown(seconds) {
-        $('#timer-display').show();
-        let counter = seconds;
-        const circle = $('#countdown-circle');
-        const circumference = 2 * Math.PI * 16;
-        const countdownElement = $('#countdown');
-        
-        // Initialize circle
-        circle.css('stroke-dasharray', circumference);
-        circle.css('stroke-dashoffset', 0);
-        
-        const interval = setInterval(() => {
-            countdownElement.text(counter);
-            
-            // Update progress circle
-            const offset = circumference - (counter / seconds) * circumference;
-            circle.css('stroke-dashoffset', offset);
-            
-            counter--;
-            
-            if (counter < 0) {
-                clearInterval(interval);
-                $('#timer-display').hide();
-            }
-        }, 1000);
-    }
 
     // Check if there's an active manual announcement
     function checkActiveAnnouncement() {
         $.get(`${baseUrl}/check-active`, function(response) {
             if (response.active && response.type === 'manual') {
                 $('input[name="type"][value="manual"]').prop('checked', true).trigger('change');
-                $('input[name="duration"]').val(response.duration);
-                $('#duration-value').text(response.duration);
-                startCountdown(response.remaining);
+                $('#stop-manual-section').removeClass('hidden');
             }
         });
     }
@@ -514,92 +415,129 @@ $(document).ready(function() {
     // Load active announcements
     function loadActiveAnnouncements() {
         $.get(`${baseUrl}/active-announcements`, function(response) {
-            const container = $('#active-announcements-container');
-            
-            if (response.length === 0) {
-                container.html('<p class="text-sm text-gray-500">Tidak ada pengumuman aktif</p>');
-                return;
-            }
-            
-            let html = '<div class="space-y-3">';
-            
-            response.forEach(announcement => {
-                html += `
-                    <div class="p-3 border border-gray-200 rounded-lg">
-                        <div class="flex justify-between items-start">
-                            <div>
-                                <h3 class="font-medium text-gray-800">${announcement.room}</h3>
-                                <p class="text-sm text-gray-500">${announcement.type === 'tts' ? 'TTS' : 'Manual'}</p>
-                            </div>
-                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                Active
-                            </span>
-                        </div>
-                        <div class="mt-2 text-sm text-gray-500">
-                            <p>Mulai: ${new Date(announcement.sent_at).toLocaleString()}</p>
-                            ${announcement.type === 'manual' ? `<p>Durasi: ${announcement.duration} detik</p>` : ''}
-                        </div>
-                        <div class="mt-2">
-                            <button class="text-red-600 hover:text-red-900 text-sm font-medium stop-announcement" data-id="${announcement.id}">
-                                Hentikan
-                            </button>
-                        </div>
-                    </div>
-                `;
-            });
-            
-            html += '</div>';
-            container.html(html);
+            updateActiveStatus(response);
         });
     }
 
-    // Stop announcement button handler
-    $(document).on('click', '.stop-announcement', function() {
-        const announcementId = $(this).data('id');
+    // Update active status UI
+    function updateActiveStatus(activeAnnouncements) {
+        const activeIndicator = $('#active-indicator');
+        const activeRoomsIndicator = $('#active-rooms-indicator');
+        const activeRoomsBadges = $('#active-rooms-badges');
         
+        if (activeAnnouncements.length === 0) {
+            activeIndicator.html(`
+                <div class="flex-shrink-0 mt-1">
+                    <div class="h-3 w-3 rounded-full bg-gray-300"></div>
+                </div>
+                <div class="ml-3">
+                    <p class="text-sm font-medium text-gray-700">Tidak ada pengumuman aktif</p>
+                    <p class="text-xs text-gray-500">Siap menerima pengumuman baru</p>
+                </div>
+            `);
+            activeRoomsIndicator.addClass('hidden');
+            return;
+        }
+
+        // Count unique active rooms
+        const allRooms = [];
+        activeAnnouncements.forEach(announcement => {
+            allRooms.push(...announcement.target_ruangans);
+        });
+        const uniqueRooms = [...new Set(allRooms)];
+
+        // Update main indicator
+        activeIndicator.html(`
+            <div class="flex-shrink-0 mt-1">
+                <div class="h-3 w-3 rounded-full bg-green-500 animate-pulse"></div>
+            </div>
+            <div class="ml-3">
+                <p class="text-sm font-medium text-gray-700">${activeAnnouncements.length} pengumuman aktif</p>
+                <p class="text-xs text-gray-500">${uniqueRooms.length} ruangan terpengaruh</p>
+            </div>
+        `);
+
+        // Update active rooms badges
+        activeRoomsIndicator.removeClass('hidden');
+        $('#active-count').text(uniqueRooms.length);
+        
+        let badgesHtml = '';
+        uniqueRooms.forEach(room => {
+            badgesHtml += `
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                    ${room}
+                </span>
+            `;
+        });
+        activeRoomsBadges.html(badgesHtml);
+    }
+
+    // Update active rooms display
+    function updateActiveRooms(ruangans) {
+        const activeRoomsIndicator = $('#active-rooms-indicator');
+        const activeRoomsBadges = $('#active-rooms-badges');
+        
+        activeRoomsIndicator.removeClass('hidden');
+        $('#active-count').text(ruangans.length);
+        
+        let badgesHtml = '';
+        ruangans.forEach(ruangan => {
+            badgesHtml += `
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                    ${ruangan}
+                </span>
+            `;
+        });
+        activeRoomsBadges.html(badgesHtml);
+    }
+
+    // Helper function to show alert
+    function showAlert(icon, title, text) {
         Swal.fire({
-            title: 'Konfirmasi',
-            text: 'Anda yakin ingin menghentikan pengumuman ini?',
-            icon: 'warning',
+            icon: icon,
+            title: title,
+            text: text,
+            timer: 2000,
+            showConfirmButton: false
+        });
+    }
+
+    // Helper function to show confirmation dialog
+    function showConfirmation(title, text, html, confirmCallback) {
+        Swal.fire({
+            title: title,
+            text: text,
+            html: html,
+            icon: 'question',
             showCancelButton: true,
-            confirmButtonText: 'Ya, Hentikan',
+            confirmButtonText: 'Ya, Lanjutkan',
             cancelButtonText: 'Batal',
-            reverseButtons: true
+            reverseButtons: true,
+            customClass: {
+                confirmButton: 'px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md',
+                cancelButton: 'px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-md'
+            }
         }).then((result) => {
             if (result.isConfirmed) {
-                $.post(`${baseUrl}/stop-announcement`, {
-                    id: announcementId,
-                    _token: $('meta[name="csrf-token"]').attr('content')
-                }, function(response) {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Berhasil!',
-                        text: response.message || 'Pengumuman berhasil dihentikan',
-                        timer: 2000,
-                        showConfirmButton: false
-                    });
-                    
-                    // Refresh active announcements
-                    loadActiveAnnouncements();
-                }).fail(function(xhr) {
-                    const errorMsg = xhr.responseJSON?.message || 'Gagal menghentikan pengumuman';
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Gagal!',
-                        text: errorMsg,
-                        timer: 2000,
-                        showConfirmButton: false
-                    });
-                });
+                confirmCallback();
             }
         });
-    });
+    }
+
+    // Helper function to handle AJAX errors
+    function handleAjaxError(xhr) {
+        const errorMsg = xhr.responseJSON?.message || 'Terjadi kesalahan saat memproses permintaan';
+        showAlert('error', 'Gagal!', errorMsg);
+    }
 
     // Initialize the UI
     initUI();
     
-    // Load initial data
-    loadActiveAnnouncements();
+    // Polling for updates every 30 seconds
+    setInterval(function() {
+        updateMqttStatus();
+        loadActiveAnnouncements();
+    }, 30000);
 });
 </script>
 @endsection

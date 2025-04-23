@@ -297,21 +297,14 @@ class MqttService
         
         // Jika TTS, kirim perintah stop setelah delay
         if ($payload['type'] === 'tts' && $payload['auto_stop'] ?? false) {
-            $duration = $this->estimateTtsDuration($payload['content']);
-            sleep($duration + 2); // Tambah buffer 2 detik
             
             $stopPayload = [
                 'type' => 'stop_tts',
-                'target_rooms' => $payload['target_rooms'],
+                'target_ruangans' => $payload['target_ruangans'],
                 'timestamp' => now()->toDateTimeString()
             ];
             $this->publish($topic, json_encode($stopPayload), 1, false);
         }
-    }
-
-    private function estimateTtsDuration($text)
-    {
-        // Estimasi 0.3 detik per karakter (termasuk jeda)
-        return min(300, ceil(strlen($text) * 0.3)); // Max 5 menit
+        
     }
 }

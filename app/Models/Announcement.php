@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -11,24 +12,25 @@ class Announcement extends Model
     protected $fillable = [
         'type',
         'content',
-        'target_rooms',
+        'target_ruangans', // Menggunakan 'ruangan' bukan 'target_ruangans'
         'duration',
         'sent_at',
         'is_active',
-        'status'
+        'status',
+        'audio_url'
     ];
 
     protected $casts = [
-        'target_rooms' => 'array', // Kolom ini akan disimpan sebagai JSON
+        'target_ruangans' => 'array',
         'sent_at' => 'datetime',
-        'is_active' => 'boolean'
+        'is_active' => 'boolean',
     ];
 
     /**
-     * Relationship with Room (Many-to-Many)
+     * Relasi ke model Ruangan
      */
-    public function rooms()
+    public function ruangans()
     {
-        return $this->belongsToMany(Room::class, 'announcement_room', 'announcement_id', 'room_name');
+        return Ruangan::whereIn('nama', $this->ruangan)->get();
     }
 }

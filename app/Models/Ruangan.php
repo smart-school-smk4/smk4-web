@@ -13,17 +13,61 @@ class Ruangan extends Model
 
     protected $fillable = [
         'nama_ruangan',
-        'id_kelas',
-        'id_jurusan',
+        'kelas_id',
+        'jurusan_id'
     ];
 
+    /**
+     * Relasi ke model Kelas
+     */
     public function kelas()
     {
-        return $this->belongsTo(Kelas::class, 'id_kelas');
+        return $this->belongsTo(Kelas::class, 'kelas_id');
     }
 
+    /**
+     * Relasi ke model Jurusan
+     */
     public function jurusan()
     {
-        return $this->belongsTo(Jurusan::class, 'id_jurusan');
+        return $this->belongsTo(Jurusan::class, 'jurusan_id');
+    }
+
+    /**
+     * Relasi ke model Announcement (pengumuman)
+     */
+    public function announcements()
+    {
+        return $this->hasMany(Announcement::class, 'ruangan_id');
+    }
+
+    /**
+     * Accessor untuk nama ruangan
+     */
+    public function getNamaRuanganAttribute($value)
+    {
+        return strtoupper($value);
+    }
+
+    /**
+     * Mutator untuk nama ruangan
+     */
+    public function setNamaRuanganAttribute($value)
+    {
+        $this->attributes['nama_ruangan'] = strtolower($value);
+    }
+
+    /**
+     * Scope untuk pencarian ruangan
+     */
+    public function scopeSearch($query, $term)
+    {
+        return $query->where('nama_ruangan', 'like', "%{$term}%")
+                    ->orWhereHas('kelas', function($q) use ($term) {
+                        $q->where('nama_kelas', 'like', "%{$term}%");
+                    })
+                    ->orWhereHas('jurusan', function($q) use ($term) {
+                        $q->where('nama_jurusan', 'like', "%{$term}%");
+                    });
     }
 }

@@ -684,18 +684,18 @@ function getLiveStatus() {
         Swal.close();
         if (data.success) {
             updateDeviceStatus(data.data);
-            Toast.fire({
-                icon: 'success',
-                title: 'Status perangkat diperbarui'
-            });
+            // Toast.fire({
+            //     icon: 'success',
+            //     title: 'Status perangkat diperbarui'
+            // });
         }
     })
     .catch(error => {
-        Swal.fire({
-            icon: 'error',
-            title: 'Gagal memperbarui status',
-            text: error.message
-        });
+        // Swal.fire({
+        //     icon: 'error',
+        //     title: 'Gagal memperbarui status',
+        //     text: error.message
+        // });
     });
 }
 
@@ -844,6 +844,7 @@ function updateNextSchedule() {
 // Initialize when page loads
 document.addEventListener('DOMContentLoaded', function() {
     updateNextSchedule();
+    getLiveStatus();
     
     // Refresh every minute to stay accurate
     setInterval(updateNextSchedule, 60000);

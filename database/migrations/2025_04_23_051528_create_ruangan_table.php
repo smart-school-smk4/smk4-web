@@ -6,26 +6,31 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('ruangan', function (Blueprint $table) {
             $table->id();
             $table->string('nama_ruangan');
-            $table->timestamps();
-
+            
+            // Foreign keys
             $table->foreignId('kelas_id')->constrained('kelas')->onDelete('cascade');
             $table->foreignId('jurusan_id')->constrained('jurusan')->onDelete('cascade');
+            
+            $table->timestamps();
+            
+            // Tambahkan index untuk pencarian
+            $table->index('nama_ruangan');
+            $table->index(['kelas_id', 'jurusan_id']);
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
+        Schema::table('ruangan', function (Blueprint $table) {
+            $table->dropForeign(['kelas_id']);
+            $table->dropForeign(['jurusan_id']);
+        });
+        
         Schema::dropIfExists('ruangan');
     }
 };

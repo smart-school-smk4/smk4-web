@@ -13,6 +13,7 @@ use App\Http\Controllers\PresensiController;
 use App\Http\Controllers\SiswaController;
 use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\MqttController;
+use App\Http\Controllers\RuanganController;
 
 // Public routes
 Route::get('/', [IndexController::class, 'index'])->name('index');
@@ -36,7 +37,7 @@ Route::middleware(['auth'])->group(function () {
 
         // Siswa
         Route::controller(SiswaController::class)->group(function () {
-            Route::get('/siswa', 'index')->name('admin.siswa');
+            Route::get('/siswa', 'index2')->name('admin.siswa');
             Route::get('/siswa/create', 'create')->name('siswa.create');
             Route::post('/siswa', 'store')->name('siswa.store');
         });
@@ -49,6 +50,9 @@ Route::middleware(['auth'])->group(function () {
 
         // Jurusan
         Route::get('/jurusan', [JurusanController::class, 'index'])->name('admin.jurusan');
+
+        // Ruangan
+        Route::get('/ruangan', [RuanganController::class, 'index'])->name('admin.ruangan');
 
         // Presensi
         Route::controller(PresensiController::class)->group(function () {

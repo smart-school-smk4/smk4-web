@@ -49,6 +49,9 @@
                     <li><a href="{{ route('admin.jurusan') }}"
                             class="block p-2 rounded-lg {{ request()->is('admin/jurusan') ? 'bg-blue-100 text-blue-600' : 'bg-gray-50 text-gray-800' }}">Jurusan</a>
                     </li>
+                    <li><a href="{{ route('admin.ruangan') }}"
+                            class="block p-2 rounded-lg {{ request()->is('admin/ruangan') ? 'bg-blue-100 text-blue-600' : 'bg-gray-50 text-gray-800' }}">Ruangan</a>
+                    </li>
                 </ul>
             </li>
 

@@ -45,8 +45,16 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/guru', [GuruController::class, 'index'])->name('admin.guru');
 
         // Kelas
-        Route::get('/kelas', [KelasController::class, 'index'])->name('admin.kelas');
-
+        Route::resource('kelas', KelasController::class)->parameters([
+            'kelas' => 'kelas',
+        ])->names([
+            'index' => 'admin.kelas.index',
+            'create' => 'admin.kelas.create',
+            'store' => 'admin.kelas.store',
+            'edit' => 'admin.kelas.edit',
+            'update' => 'admin.kelas.update',
+            'destroy' => 'admin.kelas.destroy',
+        ]);
         // Jurusan
         Route::resource('jurusan', JurusanController::class)->names([
             'index' => 'admin.jurusan.index',

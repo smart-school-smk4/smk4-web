@@ -43,8 +43,8 @@
                     <li><a href="{{ route('admin.guru') }}"
                             class="block p-2 rounded-lg {{ request()->is('admin/guru') ? 'bg-blue-100 text-blue-600' : 'bg-gray-50 text-gray-800' }}">Guru</a>
                     </li>
-                    <li><a href="{{ route('admin.kelas') }}"
-                            class="block p-2 rounded-lg {{ request()->is('admin/kelas') ? 'bg-blue-100 text-blue-600' : 'bg-gray-50 text-gray-800' }}">Kelas</a>
+                    <li><a href="{{ route('admin.kelas.index') }}"
+                            class="block p-2 rounded-lg {{ request()->is('admin/kelas/index') ? 'bg-blue-100 text-blue-600' : 'bg-gray-50 text-gray-800' }}">Kelas</a>
                     </li>
                     <li><a href="{{ route('admin.jurusan.index') }}"
                             class="block p-2 rounded-lg {{ request()->is('admin/jurusan/index') ? 'bg-blue-100 text-blue-600' : 'bg-gray-50 text-gray-800' }}">Jurusan</a>

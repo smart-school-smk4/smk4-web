@@ -37,6 +37,7 @@ return [
         'responses' => [
             'status' => 'bel/sekolah/response/status',
             'ack' => 'bel/sekolah/response/ack',
+            'bell_ring' => 'bel/sekolah/response/ring',
         ],
         'announcements' => [
             'general' => 'bel/sekolah/pengumuman',

@@ -10,6 +10,7 @@ class KelasController extends Controller
 {
     public function index(){
         $kelas = Kelas::with('jurusan')->get();
+        $kelas = Kelas::paginate(10);
         return view('admin.kelas.index', compact('kelas'));
     }
 

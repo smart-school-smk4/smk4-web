@@ -37,7 +37,7 @@
                     </svg>
                 </button>
                 <ul class="dropdown hidden mt-2 ml-5 space-y-2">
-                    <li><a href="{{ route('admin.siswa') }}"
+                    <li><a href="{{ route('admin.siswa.index') }}"
                             class="block p-2 rounded-lg {{ request()->is('admin/siswa') ? 'bg-blue-100 text-blue-600' : 'bg-gray-50 text-gray-800' }}">Siswa</a>
                     </li>
                     <li><a href="{{ route('admin.guru') }}"

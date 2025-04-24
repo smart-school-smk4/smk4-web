@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\JadwalBel;
 use App\Models\Status;
+use App\Models\BellHistory;
 use App\Services\MqttService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -37,6 +38,14 @@ class BelController extends Controller
                 $this->mqttConfig['topics']['responses']['ack'],
                 function (string $topic, string $message) {
                     $this->handleAckResponse($message);
+                }
+            );
+
+            // Tambahkan subscribe untuk topik bell ring
+            $this->mqttService->subscribe(
+                $this->mqttConfig['topics']['responses']['bell_ring'],
+                function (string $topic, string $message) {
+                    $this->handleBellRing($message);
                 }
             );
         } catch (\Exception $e) {
@@ -335,19 +344,35 @@ class BelController extends Controller
             'repeat' => 'sometimes|integer|min:1|max:10',
             'volume' => 'sometimes|integer|min:0|max:30'
         ]);
+        
         try {
+            // Catat ke history terlebih dahulu
+            BellHistory::create([
+                'hari' => Carbon::now()->isoFormat('dddd'),
+                'waktu' => Carbon::now()->format('H:i:s'),
+                'file_number' => $validated['file_number'],
+                'trigger_type' => BellHistory::TRIGGER_MANUAL,
+                'ring_time' => Carbon::now(),
+                'volume' => $validated['volume'] ?? 15,
+                'repeat' => $validated['repeat'] ?? 1
+            ]);
+
+            // Kirim perintah ke MQTT
             $message = json_encode([
                 'action' => 'ring',
                 'timestamp' => Carbon::now()->toDateTimeString(),
                 'file_number' => $validated['file_number'],
                 'repeat' => $validated['repeat'] ?? 1,
-                'volume' => $validated['volume'] ?? 15
+                'volume' => $validated['volume'] ?? 15,
+                'trigger_type' => BellHistory::TRIGGER_MANUAL
             ]);
+            
             $this->mqttService->publish(
                 $this->mqttConfig['topics']['commands']['ring'],
                 $message,
                 1
             );
+            
             return response()->json([
                 'success' => true,
                 'message' => 'Perintah bel berhasil dikirim',
@@ -357,6 +382,7 @@ class BelController extends Controller
                 ]
             ]);
         } catch (\Exception $e) {
+            Log::error('Gagal mengirim bel manual: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Gagal mengirim perintah bel: ' . $e->getMessage()
@@ -611,4 +637,61 @@ class BelController extends Controller
         );
     }
     
+    protected function handleBellRing(string $message)
+    {
+        try {
+            $data = json_decode($message, true);
+            
+            // Validasi data yang diterima
+            if (!isset($data['hari']) || !isset($data['waktu']) || !isset($data['file_number']) || !isset($data['trigger_type'])) {
+                Log::error('Invalid bell ring data format');
+                return;
+            }
+
+            // Simpan ke history
+            BellHistory::create([
+                'hari' => $data['hari'],
+                'waktu' => $data['waktu'],
+                'file_number' => $data['file_number'],
+                'trigger_type' => $data['trigger_type'],
+                'ring_time' => Carbon::now(),
+                'volume' => $data['volume'] ?? 15, // Default volume 15
+                'repeat' => $data['repeat'] ?? 1   // Default repeat 1x
+            ]);
+
+            Log::info('Bell ring recorded to history', ['data' => $data]);
+
+        } catch (\Exception $e) {
+            Log::error('Error handling bell ring: ' . $e->getMessage());
+        }
+    }
+
+    public function history(Request $request)
+    {
+        try {
+            $query = BellHistory::query()->latest('ring_time');
+            
+            if ($request->filled('date')) {
+                $query->whereDate('ring_time', $request->date);
+            }
+            
+            if ($request->filled('search')) {
+                $query->where(function($q) use ($request) {
+                    $q->where('hari', 'like', '%'.$request->search.'%')
+                    ->orWhere('file_number', 'like', '%'.$request->search.'%')
+                    ->orWhere('trigger_type', 'like', '%'.$request->search.'%');
+                });
+            }
+            
+            $histories = $query->paginate(15);
+            
+            return view('admin.bel.history', [
+                'histories' => $histories
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('Error fetching history: ' . $e->getMessage());
+            return back()->with('error', 'Gagal memuat riwayat bel');
+        }
+    }
 }

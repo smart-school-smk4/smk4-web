@@ -34,12 +34,18 @@ Route::middleware(['auth'])->group(function () {
         // Dashboard
         Route::get('/dashboard', [AdminController::class, 'index'])->name('admin.dashboard');
 
+
         // Siswa
         Route::controller(SiswaController::class)->group(function () {
-            Route::get('/siswa', 'index2')->name('admin.siswa');
-            Route::get('/siswa/create', 'create')->name('siswa.create');
-            Route::post('/siswa', 'store')->name('siswa.store');
+            Route::get('/siswa', 'index')->name('admin.siswa.index'); // halaman utama siswa
+            Route::get('/siswa/create', 'create')->name('admin.siswa.create'); // form tambah siswa
+            Route::post('/siswa', 'store')->name('admin.siswa.store'); // simpan siswa baru
+            Route::get('/siswa/{id}/edit', 'edit')->name('admin.siswa.edit'); // form edit siswa
+            Route::put('/siswa/{id}', 'update')->name('admin.siswa.update'); // simpan update siswa
+            Route::delete('/siswa/{id}', 'destroy')->name('admin.siswa.destroy'); // hapus siswa
         });
+
+        
 
         // Guru
         Route::get('/guru', [GuruController::class, 'index'])->name('admin.guru');
@@ -91,6 +97,7 @@ Route::middleware(['auth'])->group(function () {
             Route::put('/{id}', 'update')->name('bel.update');
             Route::delete('/{id}', 'destroy')->name('bel.delete');
             Route::delete('/', 'deleteAll')->name('bel.delete-all');
+            Route::get('/history', 'history')->name('bel.history');
         });
 
         // Announcement System

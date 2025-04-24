@@ -65,8 +65,14 @@ Route::middleware(['auth'])->group(function () {
             'destroy' => 'admin.jurusan.destroy',
         ]);
         // Ruangan
-        Route::get('/ruangan', [RuanganController::class, 'index'])->name('admin.ruangan');
-
+        Route::resource('ruangan', RuanganController::class)->names([
+            'index' => 'admin.ruangan.index',
+            'create' => 'admin.ruangan.create',
+            'store' => 'admin.ruangan.store',
+            'edit' => 'admin.ruangan.edit',
+            'update' => 'admin.ruangan.update',
+            'destroy' => 'admin.ruangan.destroy',
+        ]);
         // Presensi
         Route::controller(PresensiController::class)->group(function () {
             Route::get('/presensi/siswa', 'indexSiswa')->name('admin.presensi.siswa');

@@ -13,22 +13,22 @@ return new class extends Migration
             $table->string('nama_ruangan');
             
             // Foreign keys
-            $table->foreignId('kelas_id')->constrained('kelas')->onDelete('cascade');
-            $table->foreignId('jurusan_id')->constrained('jurusan')->onDelete('cascade');
+            $table->foreignId('id_kelas')->constrained('kelas')->onDelete('cascade');
+            $table->foreignId('id_jurusan')->constrained('jurusan')->onDelete('cascade');
             
             $table->timestamps();
             
             // Tambahkan index untuk pencarian
             $table->index('nama_ruangan');
-            $table->index(['kelas_id', 'jurusan_id']);
+            $table->index(['id_kelas', 'id_jurusan']);
         });
     }
 
     public function down(): void
     {
         Schema::table('ruangan', function (Blueprint $table) {
-            $table->dropForeign(['kelas_id']);
-            $table->dropForeign(['jurusan_id']);
+            $table->dropForeign(['id_kelas']);
+            $table->dropForeign(['id_jurusan']);
         });
         
         Schema::dropIfExists('ruangan');

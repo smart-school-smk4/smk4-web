@@ -13,8 +13,8 @@ class Ruangan extends Model
 
     protected $fillable = [
         'nama_ruangan',
-        'kelas_id',
-        'jurusan_id'
+        'id_kelas',
+        'id_jurusan'
     ];
 
     /**
@@ -22,7 +22,7 @@ class Ruangan extends Model
      */
     public function kelas()
     {
-        return $this->belongsTo(Kelas::class, 'kelas_id');
+        return $this->belongsTo(Kelas::class, 'id_kelas');
     }
 
     /**
@@ -30,7 +30,7 @@ class Ruangan extends Model
      */
     public function jurusan()
     {
-        return $this->belongsTo(Jurusan::class, 'jurusan_id');
+        return $this->belongsTo(Jurusan::class, 'id_jurusan');
     }
 
     /**

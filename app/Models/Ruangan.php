@@ -33,13 +33,6 @@ class Ruangan extends Model
         return $this->belongsTo(Jurusan::class, 'id_jurusan');
     }
 
-    /**
-     * Relasi ke model Announcement (pengumuman)
-     */
-    public function announcements()
-    {
-        return $this->hasMany(Announcement::class, 'ruangan_id');
-    }
 
     /**
      * Accessor untuk nama ruangan

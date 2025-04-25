@@ -101,13 +101,13 @@ Route::middleware(['auth'])->group(function () {
         });
 
         // Announcement System
-        Route::prefix('pengumuman')->group(function () {
-            Route::get('/', [AnnouncementController::class, 'index'])->name('announcements.index');
-            Route::post('/send', [AnnouncementController::class, 'send'])->name('announcements.send');
-            Route::post('/stop-manual', [AnnouncementController::class, 'stopManual'])->name('announcements.stop-manual');
-            Route::get('/active', [AnnouncementController::class, 'checkActive'])->name('announcements.active');
-            Route::get('/mqtt-status', [AnnouncementController::class, 'mqttStatus'])->name('announcements.mqttStatus');
-            Route::get('/history', [AnnouncementController::class, 'history'])->name('announcements.history');
+        Route::prefix('announcement')->controller(AnnouncementController::class)->group(function () {
+            Route::get('/', 'index')->name('announcement.index');
+            Route::post('/', 'store')->name('announcement.store');
+            Route::get('/history', 'history')->name('announcement.history');
+            Route::get('/{announcement}', 'show')->name('announcement.show');
+            Route::delete('/{announcement}', 'destroy')->name('announcement.destroy');
+            Route::post('/tts-preview', 'ttsPreview')->name('announcement.ttsPreview');
         });
     });
 });

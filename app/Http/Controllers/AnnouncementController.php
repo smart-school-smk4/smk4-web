@@ -2,386 +2,339 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Announcement;
 use App\Models\Ruangan;
-use App\Services\MqttService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
+use PhpMqtt\Client\Facades\MQTT;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Cache;
-use App\Models\Announcement;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Storage;
 
 class AnnouncementController extends Controller
 {
-    protected $mqttService;
+    // Mode constants
+    const MODE_REGULER = 'reguler';
+    const MODE_TTS = 'tts';
 
-    public function __construct(MqttService $mqttService)
-    {
-        $this->mqttService = $mqttService;
-    }
+    // TTS API constants
+    const TTS_API_URL = 'http://api.voicerss.org/';
+    const TTS_API_KEY = '90927de8275148d79080facd20fb486c';
+    const TTS_DEFAULT_VOICE = 'id-id';
+    const TTS_DEFAULT_SPEED = 0; // -10 to 10
+    const TTS_DEFAULT_FORMAT = 'wav';
 
     /**
-     * Display the announcement interface
+     * Show the announcement form
      */
     public function index()
     {
-        $ruangans = Ruangan::pluck('nama_ruangan')->toArray();
-        $activeAnnouncements = Announcement::where('is_active', true)->get();
-
-        if (empty($ruangans)) {
-            $ruangans = ['ruang1', 'ruang2', 'ruang3'];
-        }
-
-        return view('admin.announcements.index', compact('ruangans', 'activeAnnouncements'));
-    }
-
-    /**
-     * Display announcement history page
-     */
-    public function history()
-    {
-        return view('admin.announcements.history');
-    }
-
-    /**
-     * Get MQTT connection status
-     */
-    public function mqttStatus()
-    {
-        return response()->json([
-            'connected' => $this->mqttService->isConnected(),
-            'status' => Cache::get('mqtt_status', 'disconnected')
-        ]);
-    }
-
-    /**
-     * Check for active announcements
-     */
-    public function checkActive()
-    {
-        $active = Cache::get('active_announcement', false);
+        $ruangan = Ruangan::with(['kelas', 'jurusan'])->get();
+        $announcements = Announcement::with(['user', 'ruangans'])
+                            ->latest()
+                            ->paginate(10);
         
-        return response()->json([
-            'active' => $active,
-            'type' => $active ? Cache::get('active_announcement_type') : null,
-            'remaining' => $active ? (Cache::get('active_announcement_end') - time()) : null
+        return view('admin.announcement.index', [
+            'ruangan' => $ruangan,
+            'announcements' => $announcements,
+            'modes' => [self::MODE_REGULER, self::MODE_TTS]
         ]);
     }
 
     /**
-     * Get active announcements
+     * Handle the announcement request
      */
-    public function activeAnnouncements()
+    public function store(Request $request)
     {
-        $announcements = Announcement::with('ruangans')
-            ->where('is_active', true)
-            ->orderBy('sent_at', 'desc')
-            ->get()
-            ->map(function($item) {
-                return [
-                    'id' => $item->id,
-                    'type' => $item->type,
-                    'content' => $item->content,
-                    'target_ruangans' => $item->target_ruangans,
-                    'sent_at' => $item->sent_at,
-                    'status' => $item->status,
-                    'ruangans' => $item->ruangans
-                ];
-            });
+        $validator = $this->validateRequest($request);
 
-        return response()->json($announcements);
-    }
-
-    /**
-     * Get announcement history (for API)
-     */
-    public function getHistory(Request $request)
-    {
-        $perPage = 10;
-        $query = Announcement::where('is_active', false)
-            ->orderBy('sent_at', 'desc');
-
-        // Filter by type
-        if ($request->filter && in_array($request->filter, ['tts', 'manual'])) {
-            $query->where('type', $request->filter);
+        if ($validator->fails()) {
+            return redirect()->back()
+                ->withErrors($validator)
+                ->withInput();
         }
 
-        // Filter by status
-        if ($request->status && in_array($request->status, ['completed', 'stopped'])) {
-            $query->where('status', $request->status);
-        }
+        $mode = $request->input('mode');
 
-        // Search
-        if ($request->search) {
-            $query->where('content', 'like', '%'.$request->search.'%');
-        }
-
-        $paginated = $query->paginate($perPage);
-
-        return response()->json([
-            'data' => $paginated->items(),
-            'total' => $paginated->total(),
-            'from' => $paginated->firstItem(),
-            'to' => $paginated->lastItem(),
-            'current_page' => $paginated->currentPage(),
-            'last_page' => $paginated->lastPage()
-        ]);
-    }
-
-    /**
-     * Get announcement details
-     */
-    public function announcementDetails($id)
-    {
-        $announcement = Announcement::with('ruangans')->findOrFail($id);
-        
-        return response()->json([
-            'id' => $announcement->id,
-            'type' => $announcement->type,
-            'content' => $announcement->content,
-            'target_ruangans' => $announcement->target_ruangans,
-            'sent_at' => $announcement->sent_at,
-            'status' => $announcement->status,
-            'audio_url' => $announcement->audio_url,
-            'ruangans' => $announcement->ruangans
-        ]);
-    }
-
-    /**
-     * Send announcement to MQTT
-     */
-    public function send(Request $request)
-    {
-        // Validasi input
-        $validated = $request->validate([
-            'type' => 'required|in:tts,manual',
-            'content' => 'nullable|required_if:type,tts|string|max:500',
-            'ruangans' => 'required|array|min:1',
-            'ruangans.*' => 'string',
-        ]);
-
-        if ($validated['type'] === 'tts' && empty(config('services.voicerss.key'))) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Layanan Text-to-Speech tidak tersedia saat ini.'
-            ], 400);
-        }
-    
         try {
-            // Persiapkan data awal
-            $announcementData = [
-                'type' => $validated['type'],
-                'target_ruangans' => $validated['ruangans'],
-                'sent_at' => now(),
-                'is_active' => true,
-                'status' => 'processing'
-            ];
-    
-            // Handle TTS
-            if ($validated['type'] === 'tts') {
-                $announcementData['content'] = $validated['content'];
-                
-                // Generate audio dan simpan URL
-                $audioUrl = $this->generateTtsAudio($validated['content']);
-                $announcementData['audio_url'] = $audioUrl;
-                
-                // TTS langsung dianggap selesai
-                $announcementData['is_active'] = false;
-                $announcementData['status'] = 'completed';
+            if ($mode === self::MODE_REGULER) {
+                $this->handleRegularAnnouncement($request);
+                $message = 'Pengumuman reguler berhasil dikirim ke ruangan terpilih.';
+            } elseif ($mode === self::MODE_TTS) {
+                $this->handleTTSAnnouncement($request);
+                $message = 'Pengumuman TTS berhasil diproses dan dikirim.';
             }
-    
-            // Buat pengumuman
-            $announcement = Announcement::create($announcementData);
-    
-            // Siapkan payload MQTT
-            $payload = [
-                'type' => $validated['type'],
-                'target_ruangans' => $validated['ruangans'],
-                'timestamp' => now()->toDateTimeString(),
-                'announcement_id' => $announcement->id
-            ];
-    
-            // Tambahkan data khusus TTS
-            if ($validated['type'] === 'tts') {
-                $payload['content'] = $validated['content'];
-                $payload['audio_url'] = $audioUrl; // Gunakan variabel yang sudah digenerate
-            }
-    
-            // Kirim via MQTT
-            $this->mqttService->sendAnnouncement($payload);
-    
-            return response()->json([
-                'success' => true,
-                'message' => 'Pengumuman berhasil dikirim!',
-                'audio_url' => $audioUrl ?? null // Sertakan audio_url dalam response
-            ]);
-    
+
+            return redirect()->route('admin.announcement.index')->with('success', $message);
         } catch (\Exception $e) {
             Log::error('Announcement error: ' . $e->getMessage());
-            
-            // Hapus record jika gagal setelah create
-            if (isset($announcement)) {
-                $announcement->delete();
-            }
+            return redirect()->back()
+                ->with('error', 'Terjadi kesalahan saat memproses pengumuman: ' . $e->getMessage())
+                ->withInput();
+        }
+    }
+
     
-            return response()->json([
-                'success' => false,
-                'message' => 'Gagal mengirim pengumuman: ' . $e->getMessage(),
-            ], 500);
+    /**
+    * Validate the announcement request
+    */
+    private function validateRequest(Request $request)
+    {
+        $rules = [
+            'mode' => 'required|in:reguler,tts',
+        ];
+
+        if ($request->input('mode') === self::MODE_REGULER) {
+            $rules['ruangan'] = 'required|array';
+            $rules['ruangan.*'] = 'exists:ruangan,id';
+            // Remove message requirement for regular mode
+        } elseif ($request->input('mode') === self::MODE_TTS) {
+            $rules['tts_text'] = 'required|string|max:1000';
+            $rules['tts_voice'] = 'nullable|string';
+            $rules['tts_speed'] = 'nullable|integer|min:-10|max:10';
+            $rules['tts_ruangan'] = 'required|array';
+            $rules['tts_ruangan.*'] = 'exists:ruangan,id';
         }
+
+        return Validator::make($request->all(), $rules);
     }
 
     /**
-     * Stop manual audio routing
+     * Handle regular announcement
      */
-    public function stopManual()
+    private function handleRegularAnnouncement(Request $request)
     {
-        try {
-            Announcement::where('is_active', true)
-                ->where('type', 'manual')
-                ->update([
-                    'is_active' => false,
-                    'status' => 'completed'
-                ]);
-
-            $payload = [
-                'type' => 'manual',
-                'action' => 'deactivate_relay',
-                'timestamp' => now()->toDateTimeString(),
-            ];
-
-            $this->mqttService->publish('bel/sekolah/pengumuman', json_encode($payload), 1, false);
-
-            // Clear active announcement cache
-            Cache::forget('active_announcement');
-            Cache::forget('active_announcement_type');
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Relay ruangan berhasil dimatikan!',
-            ]);
-        } catch (\Exception $e) {
-            Log::error('Stop manual error: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Gagal mematikan relay: ' . $e->getMessage(),
-            ], 500);
-        }
-    }
-
-    /**
-     * Stop specific announcement
-     */
-    public function stopAnnouncement(Request $request)
-    {
-        try {
-            $announcement = Announcement::findOrFail($request->id);
-            $announcement->update([
-                'is_active' => false,
-                'status' => 'stopped'
-            ]);
-
-            if ($announcement->type === 'manual') {
-                $payload = [
-                    'type' => 'manual',
-                    'action' => 'deactivate_relay',
-                    'announcement_id' => $announcement->id,
-                    'timestamp' => now()->toDateTimeString(),
-                ];
-                $this->mqttService->publish('bel/sekolah/pengumuman', json_encode($payload), 1, false);
-            }
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Pengumuman berhasil dihentikan!',
-            ]);
-        } catch (\Exception $e) {
-            Log::error('Stop announcement error: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Gagal menghentikan pengumuman: ' . $e->getMessage(),
-            ], 500);
-        }
-    }
-
-    /**
-     * Generate TTS audio using VoiceRSS
-     */
-    private function generateTtsAudio($text)
-    {
-        $apiKey = config('services.voicerss.key');
+        $ruanganIds = $request->input('ruangan');
         
-        // Validate API key configuration
-        if (empty($apiKey)) {
-            Log::error('VoiceRSS API Key not configured');
-            return $this->getTtsFallback($text); // Use fallback instead of throwing exception
+        $ruangan = Ruangan::whereIn('id', $ruanganIds)->get();
+
+        $payload = [
+            'type' => 'reguler',
+            'action' => 'activate', // Add action type
+            'ruangan' => $ruangan->pluck('nama_ruangan')->toArray(),
+            'timestamp' => now()->toDateTimeString()
+        ];
+
+        $this->publishToMQTT($payload);
+
+        // Simpan ke database tanpa message
+        $announcement = Announcement::create([
+            'mode' => self::MODE_REGULER,
+            'message' => 'Aktivasi ruangan', // Default message or empty
+            'ruangan' => $ruangan->pluck('nama_ruangan')->toArray(),
+            'user_id' => auth()->id,
+            'sent_at' => now()
+        ]);
+
+        // Attach ruangan ke pengumuman
+        $announcement->ruangans()->attach($ruanganIds);
+
+        Log::info('Regular announcement sent', [
+            'announcement_id' => $announcement->id,
+            'ruangan' => $ruanganIds
+        ]);
+    }
+    
+    private function handleTTSAnnouncement(Request $request)
+    {
+        $text = $request->input('tts_text');
+        $ruanganIds = $request->input('tts_ruangan');
+        $voice = $request->input('tts_voice', self::TTS_DEFAULT_VOICE);
+        $speed = $request->input('tts_speed', self::TTS_DEFAULT_SPEED);
+    
+        $audioContent = $this->generateTTS($text, $voice, $speed);
+    
+        if (!$audioContent) {
+            throw new \Exception('Gagal menghasilkan audio TTS');
         }
+    
+        // Simpan file audio
+        $fileName = 'tts/' . now()->format('YmdHis') . '.wav';
+        Storage::disk('public')->put($fileName, $audioContent);
+    
+        $ruangan = Ruangan::whereIn('id', $ruanganIds)->get();
+    
+        $payload = [
+            'type' => 'tts',
+            'audio_url' => asset('storage/' . $fileName),
+            'ruangan' => $ruangan->pluck('nama_ruangan')->toArray(),
+            'timestamp' => now()->toDateTimeString()
+        ];
+    
+        $this->publishToMQTT($payload);
+    
+        // Simpan ke database
+        $announcement = Announcement::create([
+            'mode' => self::MODE_TTS,
+            'message' => $text,
+            'audio_path' => $fileName,
+            'voice' => $voice,
+            'speed' => $speed,
+            'ruangan' => $ruangan->pluck('nama_ruangan')->toArray(),
+            'user_id' => auth()->id,
+            'sent_at' => now()
+        ]);
+    
+        // Attach ruangan ke pengumuman
+        $announcement->ruangans()->attach($ruanganIds);
+    
+        Log::info('TTS announcement sent', [
+            'announcement_id' => $announcement->id, // Diubah dari id() ke id
+            'ruangan' => $ruanganIds,
+            'text' => $text,
+            'voice' => $voice,
+            'speed' => $speed
+        ]);
+    }
 
+    /**
+     * Generate TTS audio using VoiceRSS API
+     */
+    private function generateTTS($text, $voice, $speed)
+    {
         try {
-            // Generate unique filename
-            $filename = 'tts/'.md5($text.'_'.microtime()).'.mp3';
-            $storagePath = Storage::disk('public')->path($filename);
-            
-            // Create directory if not exists
-            Storage::disk('public')->makeDirectory('tts');
-
-            $response = Http::timeout(20)
-                ->retry(3, 500)
-                ->get('https://api.voicerss.org/', [
-                    'key' => $apiKey,
-                    'hl' => 'id-id',
-                    'src' => $text,
-                    'r' => '0',
-                    'c' => 'mp3',
-                    'f' => '44khz_16bit_stereo',
-                ]);
-
-            if (!$response->successful()) {
-                Log::error('VoiceRSS API Error', [
-                    'status' => $response->status(),
-                    'response' => $response->body()
-                ]);
-                return $this->getTtsFallback($text);
-            }
-
-            // Save audio file
-            Storage::disk('public')->put($filename, $response->body());
-
-            // Verify file was saved
-            if (!Storage::disk('public')->exists($filename)) {
-                Log::error('Failed to save TTS file', ['path' => $filename]);
-                return $this->getTtsFallback($text);
-            }
-
-            return Storage::url($filename);
-
-        } catch (\Exception $e) {
-            Log::error('TTS Generation Failed', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+            $response = Http::get(self::TTS_API_URL, [
+                'key' => self::TTS_API_KEY,
+                'hl' => $voice,
+                'src' => $text,
+                'r' => $speed,
+                'c' => self::TTS_DEFAULT_FORMAT,
+                'f' => '8khz_8bit_mono' // Lower quality for faster transmission
             ]);
-            return $this->getTtsFallback($text);
+
+            if ($response->successful()) {
+                return $response->body();
+            }
+
+            Log::error('TTS API Error: ' . $response->body());
+            return null;
+        } catch (\Exception $e) {
+            Log::error('TTS Generation Error: ' . $e->getMessage());
+            return null;
         }
     }
 
-    private function getTtsFallback($text)
+    /**
+     * Publish message to MQTT broker
+     */
+    private function publishToMQTT(array $payload)
     {
         try {
-            // Create simple fallback audio
-            $filename = 'tts/fallback_'.md5($text).'.mp3';
-            $path = Storage::disk('public')->path($filename);
-            
-            // Generate basic audio file using shell_exec or other method
-            if (!Storage::disk('public')->exists($filename)) {
-                $command = "text2wave -o {$path} -eval '(language_indonesian)'";
-                shell_exec("echo \"{$text}\" | {$command}");
+            $mqtt = MQTT::connection();
+            $mqtt->publish('announcement/channel', json_encode($payload), 0);
+            $mqtt->disconnect();
+        } catch (\Exception $e) {
+            Log::error('MQTT Publish Error: ' . $e->getMessage());
+            throw new \Exception('Gagal mengirim pesan ke MQTT broker');
+        }
+    }
+
+    /**
+     * Get available TTS voices
+     */
+    public function getTTSVoices()
+    {
+        return [
+            'id-id' => 'Indonesian',
+            'en-us' => 'English (US)',
+            'en-gb' => 'English (UK)',
+            'ja-jp' => 'Japanese',
+            'es-es' => 'Spanish',
+            'fr-fr' => 'French',
+            'de-de' => 'German'
+        ];
+    }
+
+    /**
+     * Show announcement history
+     */
+    public function history(Request $request)
+    {
+        $search = $request->input('search');
+        $mode = $request->input('mode');
+        
+        $announcements = Announcement::with(['user', 'ruangans'])
+            ->when($search, function($query) use ($search) {
+                return $query->where('message', 'like', "%{$search}%")
+                            ->orWhereHas('ruangans', function($q) use ($search) {
+                                $q->where('nama_ruangan', 'like', "%{$search}%");
+                            })
+                            ->orWhereHas('user', function($q) use ($search) {
+                                $q->where('name', 'like', "%{$search}%");
+                            });
+            })
+            ->when($mode, function($query) use ($mode) {
+                return $query->where('mode', $mode);
+            })
+            ->latest()
+            ->paginate(10);
+        
+        return view('announcement.history', [
+            'announcements' => $announcements,
+            'search' => $search,
+            'mode' => $mode,
+            'modes' => [self::MODE_REGULER, self::MODE_TTS]
+        ]);
+    }
+
+    /**
+     * Show announcement detail
+     */
+    public function show(Announcement $announcement)
+    {
+        return view('announcement.show', [
+            'announcement' => $announcement->load(['user', 'ruangans'])
+        ]);
+    }
+
+    /**
+     * Delete an announcement
+     */
+    public function destroy(Announcement $announcement)
+    {
+        try {
+            // Hapus file audio jika ada
+            if ($announcement->audio_path && Storage::disk('public')->exists($announcement->audio_path)) {
+                Storage::disk('public')->delete($announcement->audio_path);
             }
             
-            return Storage::url($filename);
+            $announcement->delete();
+            
+            return redirect()->route('announcement.history')
+                ->with('success', 'Pengumuman berhasil dihapus');
         } catch (\Exception $e) {
-            Log::error('Fallback TTS failed', ['error' => $e->getMessage()]);
-            return null; // Return null if both main and fallback fail
+            Log::error('Error deleting announcement: ' . $e->getMessage());
+            return redirect()->back()
+                ->with('error', 'Gagal menghapus pengumuman: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * TTS Preview endpoint
+     */
+    public function ttsPreview(Request $request)
+    {
+        $validated = $request->validate([
+            'text' => 'required|string|max:1000',
+            'voice' => 'nullable|string',
+            'speed' => 'nullable|integer|min:-10|max:10'
+        ]);
+
+        $audioContent = $this->generateTTS(
+            $validated['text'],
+            $validated['voice'] ?? self::TTS_DEFAULT_VOICE,
+            $validated['speed'] ?? self::TTS_DEFAULT_SPEED
+        );
+
+        if (!$audioContent) {
+            return response()->json(['message' => 'Gagal menghasilkan audio'], 500);
+        }
+
+        $fileName = 'tts/previews/' . uniqid() . '.wav';
+        Storage::disk('public')->put($fileName, $audioContent);
+
+        return response()->json([
+            'audio_url' => asset('storage/' . $fileName)
+        ]);
     }
 }

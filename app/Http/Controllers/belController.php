@@ -14,71 +14,125 @@ class BelController extends Controller
 {
     protected $mqttService;
     protected $mqttConfig;
+    protected const DAY_MAP = [
+        'Monday' => 'Senin',
+        'Tuesday' => 'Selasa',
+        'Wednesday' => 'Rabu',
+        'Thursday' => 'Kamis',
+        'Friday' => 'Jumat',
+        'Saturday' => 'Sabtu',
+        'Sunday' => 'Minggu'
+    ];
+    protected const DAY_ORDER = [
+        'Senin' => 1,
+        'Selasa' => 2,
+        'Rabu' => 3,
+        'Kamis' => 4,
+        'Jumat' => 5,
+        'Sabtu' => 6,
+        'Minggu' => 7
+    ];
 
     public function __construct(MqttService $mqttService)
     {
         $this->mqttService = $mqttService;
         $this->mqttConfig = config('mqtt');
-        
+        $this->initializeMqttSubscriptions();
     }
 
-    protected function initializeMqttSubscriptions()
+    protected function initializeMqttSubscriptions(): void
     {
         try {
-            // Subscribe ke topik status response
-            $this->mqttService->subscribe(
-                $this->mqttConfig['topics']['responses']['status'],
-                function (string $topic, string $message) {
-                    $this->handleStatusResponse($message);
-                }
-            );
+            $topics = $this->mqttConfig['topics']['responses'];
+            $events = $this->mqttConfig['topics']['events'];
+            
+            $this->mqttService->subscribe($topics['status'], fn($t, $m) => $this->handleStatusResponse($m));
+            $this->mqttService->subscribe($topics['ack'], fn($t, $m) => $this->handleAckResponse($m));
+            $this->mqttService->subscribe($events['bell_manual'], fn($t, $m) => $this->handleBellEvent($m, 'manual'));
+            $this->mqttService->subscribe($events['bell_schedule'], fn($t, $m) => $this->handleBellEvent($m, 'schedule'));
 
-            // Subscribe ke topik acknowledgment
-            $this->mqttService->subscribe(
-                $this->mqttConfig['topics']['responses']['ack'],
-                function (string $topic, string $message) {
-                    $this->handleAckResponse($message);
-                }
-            );
-
-            // Tambahkan subscribe untuk topik bell ring
-            $this->mqttService->subscribe(
-                $this->mqttConfig['topics']['responses']['bell_ring'],
-                function (string $topic, string $message) {
-                    $this->handleBellRing($message);
-                }
-            );
+            Log::info('Successfully subscribed to MQTT topics');
         } catch (\Exception $e) {
             Log::error('Failed to initialize MQTT subscriptions: ' . $e->getMessage());
         }
     }
 
-    protected function handleStatusResponse(string $message)
+    protected function handleBellEvent(string $message, string $triggerType): void
+    {
+        Log::debug("Processing {$triggerType} bell", ['raw_message' => $message]);
+        
+        try {
+            $data = json_decode($message, true, 512, JSON_THROW_ON_ERROR);
+            
+            $requiredFields = ['hari', 'waktu', 'file_number'];
+            foreach ($requiredFields as $field) {
+                if (!isset($data[$field])) {
+                    throw new \Exception("Field {$field} tidak ditemukan");
+                }
+            }
+
+            $history = BellHistory::create([
+                'hari' => $data['hari'],
+                'waktu' => $this->normalizeWaktu($data['waktu']),
+                'file_number' => $data['file_number'],
+                'trigger_type' => $triggerType,
+                'ring_time' => now(),
+                'volume' => $data['volume'] ?? 15,
+                'repeat' => $data['repeat'] ?? 1
+            ]);
+
+            Log::info("Bell {$triggerType} tersimpan", [
+                'id' => $history->id,
+                'hari' => $data['hari'],
+                'file' => $data['file_number']
+            ]);
+        } catch (\Exception $e) {
+            Log::error("Gagal menyimpan bell {$triggerType}", [
+                'error' => $e->getMessage(),
+                'message' => $message,
+                'trace' => $e->getTraceAsString()
+            ]);
+        }
+    }
+
+    private function normalizeWaktu(?string $time): string
+    {
+        if (empty($time)) {
+            return '00:00:00';
+        }
+
+        $parts = explode(':', $time);
+        $hour = min(23, max(0, (int)($parts[0] ?? 0)));
+        $minute = min(59, max(0, (int)($parts[1] ?? 0)));
+        $second = min(59, max(0, (int)($parts[2] ?? 0)));
+
+        return sprintf('%02d:%02d:%02d', $hour, $minute, $second);
+    }
+
+    protected function handleStatusResponse(string $message): void
     {
         try {
             $data = json_decode($message, true);
-            // Validasi payload
+            
             if (!is_array($data)) {
-                Log::error('Invalid status data format');
-                return;
+                throw new \Exception('Invalid status data format');
             }
-            // Pastikan semua kunci penting ada
+
             $requiredKeys = ['rtc', 'dfplayer', 'rtc_time', 'last_communication', 'last_sync'];
             foreach ($requiredKeys as $key) {
                 if (!array_key_exists($key, $data)) {
-                    Log::error("Missing required key in status data: {$key}");
-                    return;
+                    throw new \Exception("Missing required key: {$key}");
                 }
             }
-            // Simpan data ke database
+
             Status::updateOrCreate(
                 ['id' => 1],
                 [
-                    'rtc' => $data['rtc'] ?? false,
-                    'dfplayer' => $data['dfplayer'] ?? false,
-                    'rtc_time' => $data['rtc_time'] ?? null,
-                    'last_communication' => Carbon::createFromTimestamp($data['last_communication'] ?? 0),
-                    'last_sync' => Carbon::createFromTimestamp($data['last_sync'] ?? 0)
+                    'rtc' => $data['rtc'],
+                    'dfplayer' => $data['dfplayer'],
+                    'rtc_time' => $data['rtc_time'],
+                    'last_communication' => Carbon::createFromTimestamp($data['last_communication']),
+                    'last_sync' => Carbon::createFromTimestamp($data['last_sync'])
                 ]
             );
         } catch (\Exception $e) {
@@ -86,24 +140,23 @@ class BelController extends Controller
         }
     }
 
-    protected function handleAckResponse(string $message)
+    protected function handleAckResponse(string $message): void
     {
         try {
             $data = json_decode($message, true);
             
-            if (isset($data['action'])) {
-                $action = $data['action'];
-                $message = $data['message'] ?? '';
-                
-                if ($action === 'sync_ack') {
-                    Status::updateOrCreate(
-                        ['id' => 1],
-                        ['last_sync' => Carbon::now()]
-                    );
-                    Log::info('Schedule sync acknowledged: ' . $message);
-                } elseif ($action === 'ring_ack') {
-                    Log::info('Bell ring acknowledged: ' . $message);
-                }
+            if (!isset($data['action'])) {
+                return;
+            }
+
+            $action = $data['action'];
+            $message = $data['message'] ?? '';
+            
+            if ($action === 'sync_ack') {
+                Status::updateOrCreate(['id' => 1], ['last_sync' => Carbon::now()]);
+                Log::info('Schedule sync acknowledged: ' . $message);
+            } elseif ($action === 'ring_ack') {
+                Log::info('Bell ring acknowledged: ' . $message);
             }
         } catch (\Exception $e) {
             Log::error('Error handling ack response: ' . $e->getMessage());
@@ -113,7 +166,6 @@ class BelController extends Controller
     public function index(Request $request)
     {
         try {
-            // Ambil data utama terlepas dari koneksi MQTT
             $query = JadwalBel::query();
             
             if ($request->filled('hari')) {
@@ -127,42 +179,36 @@ class BelController extends Controller
                 });
             }
             
-            $schedules = $query->orderBy('hari')->orderBy('waktu')->paginate(10);
-            $status = Status::firstOrCreate(['id' => 1]);
+            $today = Carbon::now()->isoFormat('dddd');
+            $currentTime = Carbon::now()->format('H:i:s');
             
-            // Jadwal hari ini
-            $todaySchedules = JadwalBel::where('hari', Carbon::now()->isoFormat('dddd'))
-                ->orderBy('waktu')
-                ->get();
-                
-            // Jadwal berikutnya
-            $nextSchedule = JadwalBel::where('hari', Carbon::now()->isoFormat('dddd'))
-                ->where('waktu', '>', Carbon::now()->format('H:i:s'))
-                ->orderBy('waktu')
-                ->first();
-    
-            // Cek koneksi MQTT tanpa menghentikan eksekusi jika error
-            try {
-                $mqttStatus = $this->mqttService->isConnected() ? 'Connected' : 'Disconnected';
-            } catch (\Exception $e) {
-                $mqttStatus = 'Disconnected';
-                Log::error('MQTT check failed: ' . $e->getMessage());
-            }
-    
             return view('admin.bel.index', [
-                'schedules' => $schedules,
-                'todaySchedules' => $todaySchedules,
-                'nextSchedule' => $nextSchedule,
-                'status' => $status,
-                'mqttStatus' => $mqttStatus
+                'schedules' => $query->orderBy('hari')->orderBy('waktu')->paginate(10),
+                'todaySchedules' => JadwalBel::where('hari', $today)
+                    ->orderBy('waktu')
+                    ->get(),
+                'nextSchedule' => JadwalBel::where('hari', $today)
+                    ->where('waktu', '>', $currentTime)
+                    ->orderBy('waktu')
+                    ->first(),
+                'status' => Status::firstOrCreate(['id' => 1]),
+                'mqttStatus' => $this->getMqttStatus()
             ]);
-            
         } catch (\Exception $e) {
             Log::error('Error in index method: ' . $e->getMessage());
             return back()->with('error', 'Terjadi kesalahan saat memuat data jadwal');
         }
     }
 
+    protected function getMqttStatus(): string
+    {
+        try {
+            return $this->mqttService->isConnected() ? 'Connected' : 'Disconnected';
+        } catch (\Exception $e) {
+            Log::error('MQTT check failed: ' . $e->getMessage());
+            return 'Disconnected';
+        }
+    }
 
     public function create()
     {
@@ -178,7 +224,6 @@ class BelController extends Controller
         
         try {
             $schedule = JadwalBel::create($validated);
-            
             $this->syncSchedules();
             $this->logActivity('Jadwal dibuat', $schedule);
             
@@ -190,18 +235,14 @@ class BelController extends Controller
                 ]);
         } catch (\Exception $e) {
             Log::error('Gagal menambah jadwal: ' . $e->getMessage());
-            return back()
-                ->withInput()
-                ->with('error', 'Gagal menambah jadwal: ' . $e->getMessage());
+            return back()->withInput()->with('error', 'Gagal menambah jadwal: ' . $e->getMessage());
         }
     }
 
     public function edit($id)
     {
-        $schedule = JadwalBel::findOrFail($id);
-        
         return view('admin.bel.edit', [
-            'schedule' => $schedule,
+            'schedule' => JadwalBel::findOrFail($id),
             'days' => JadwalBel::DAYS
         ]);
     }
@@ -213,7 +254,6 @@ class BelController extends Controller
         
         try {
             $schedule->update($validated);
-            
             $this->syncSchedules();
             $this->logActivity('Jadwal diperbarui', $schedule);
             
@@ -224,20 +264,16 @@ class BelController extends Controller
                     'scroll_to' => 'schedule-'.$schedule->id
                 ]);
         } catch (\Exception $e) {
-            Log::error('Gagal update jadwal ID '.$schedule->id.': ' . $e->getMessage());
-            return back()
-                ->withInput()
-                ->with('error', 'Gagal memperbarui jadwal: ' . $e->getMessage());
+            Log::error('Gagal update jadwal ID '.$id.': ' . $e->getMessage());
+            return back()->withInput()->with('error', 'Gagal memperbarui jadwal: ' . $e->getMessage());
         }
     }
 
     public function destroy($id)
     {
-        $schedule = JadwalBel::findOrFail($id);
-        
         try {
+            $schedule = JadwalBel::findOrFail($id);
             $schedule->delete();
-            
             $this->syncSchedules();
             $this->logActivity('Jadwal dihapus', $schedule);
             
@@ -245,9 +281,8 @@ class BelController extends Controller
                 ->route('bel.index')
                 ->with('success', 'Jadwal berhasil dihapus');
         } catch (\Exception $e) {
-            Log::error('Gagal hapus jadwal ID '.$schedule->id.': ' . $e->getMessage());
-            return back()
-                ->with('error', 'Gagal menghapus jadwal: ' . $e->getMessage());
+            Log::error('Gagal hapus jadwal ID '.$id.': ' . $e->getMessage());
+            return back()->with('error', 'Gagal menghapus jadwal: ' . $e->getMessage());
         }
     }
 
@@ -262,8 +297,7 @@ class BelController extends Controller
                 ->with('success', 'Semua jadwal berhasil dihapus');
         } catch (\Exception $e) {
             Log::error('Gagal hapus semua jadwal: ' . $e->getMessage());
-            return back()
-                ->with('error', 'Gagal menghapus semua jadwal: ' . $e->getMessage());
+            return back()->with('error', 'Gagal menghapus semua jadwal: ' . $e->getMessage());
         }
     }
 
@@ -272,30 +306,18 @@ class BelController extends Controller
         try {
             $schedule = JadwalBel::findOrFail($id);
             $newStatus = !$schedule->is_active;
-            $schedule->is_active = $newStatus;
-            $schedule->save();
+            $schedule->update(['is_active' => $newStatus]);
     
-            // Return JSON response for AJAX requests
-            if (request()->wantsJson()) {
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Status jadwal berhasil diubah',
-                    'is_active' => $newStatus
-                ]);
-            }
-    
-            // Fallback for non-AJAX requests
-            return redirect()->back()->with('success', 'Status jadwal berhasil diubah');
-            
+            return response()->json([
+                'success' => true,
+                'message' => 'Status jadwal berhasil diubah',
+                'is_active' => $newStatus
+            ]);
         } catch (\Exception $e) {
-            if (request()->wantsJson()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Gagal mengubah status: ' . $e->getMessage()
-                ], 500);
-            }
-    
-            return redirect()->back()->with('error', 'Gagal mengubah status');
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal mengubah status: ' . $e->getMessage()
+            ], 500);
         }
     }
 
@@ -341,68 +363,70 @@ class BelController extends Controller
     {
         $validated = $request->validate([
             'file_number' => 'required|string|size:4',
-            'repeat' => 'sometimes|integer|min:1|max:10',
-            'volume' => 'sometimes|integer|min:0|max:30'
+            'volume' => 'sometimes|integer|min:1|max:30',
         ]);
-        
-        try {
-            // Catat ke history terlebih dahulu
-            BellHistory::create([
-                'hari' => Carbon::now()->isoFormat('dddd'),
-                'waktu' => Carbon::now()->format('H:i:s'),
-                'file_number' => $validated['file_number'],
-                'trigger_type' => BellHistory::TRIGGER_MANUAL,
-                'ring_time' => Carbon::now(),
-                'volume' => $validated['volume'] ?? 15,
-                'repeat' => $validated['repeat'] ?? 1
-            ]);
 
-            // Kirim perintah ke MQTT
-            $message = json_encode([
-                'action' => 'ring',
-                'timestamp' => Carbon::now()->toDateTimeString(),
+        // Konversi nama hari ke format enum Indonesia
+        $dayMap = [
+            'Monday' => 'Senin',
+            'Tuesday' => 'Selasa',
+            'Wednesday' => 'Rabu',
+            'Thursday' => 'Kamis',
+            'Friday' => 'Jumat',
+            'Saturday' => 'Sabtu',
+            'Sunday' => 'Minggu',
+        ];
+        $hari = $dayMap[now()->format('l')]; // format('l') = nama hari dalam Bahasa Inggris
+
+        try {
+            $bellData = [
+                'hari' => $hari,
+                'waktu' => now()->format('H:i:s'),
                 'file_number' => $validated['file_number'],
-                'repeat' => $validated['repeat'] ?? 1,
-                'volume' => $validated['volume'] ?? 15,
-                'trigger_type' => BellHistory::TRIGGER_MANUAL
-            ]);
-            
+                'volume' => $validated['volume'],
+            ];
+
+            BellHistory::create(array_merge($bellData, [
+                'trigger_type' => 'manual',
+                'ring_time' => now()
+            ]));
+
             $this->mqttService->publish(
                 $this->mqttConfig['topics']['commands']['ring'],
-                $message,
+                json_encode($validated),
                 1
             );
-            
+
             return response()->json([
                 'success' => true,
-                'message' => 'Perintah bel berhasil dikirim',
-                'data' => [
-                    'file_number' => $validated['file_number'],
-                    'timestamp' => Carbon::now()->toDateTimeString()
-                ]
+                'message' => 'Bel manual berhasil diaktifkan',
+                'data' => $bellData
             ]);
         } catch (\Exception $e) {
             Log::error('Gagal mengirim bel manual: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Gagal mengirim perintah bel: ' . $e->getMessage()
+                'message' => 'Gagal mengaktifkan bel: ' . $e->getMessage()
             ], 500);
         }
     }
 
+    
+
     public function status()
     {
         try {
-            $message = json_encode([
-                'action' => 'get_status',
-                'timestamp' => Carbon::now()->toDateTimeString()
-            ]);
             $this->mqttService->publish(
                 $this->mqttConfig['topics']['commands']['status'],
-                $message,
+                json_encode([
+                    'action' => 'get_status',
+                    'timestamp' => Carbon::now()->toDateTimeString()
+                ]),
                 1
             );
+            
             $status = Status::firstOrCreate(['id' => 1]);
+            
             return response()->json([
                 'success' => true,
                 'message' => 'Permintaan status terkirim',
@@ -413,7 +437,7 @@ class BelController extends Controller
                     'last_communication' => $status->last_communication,
                     'last_sync' => $status->last_sync,
                     'mqtt_status' => $this->mqttService->isConnected(),
-                    'status' => $status->status ?? 'unknown' // Default value jika kolom kosong
+                    'status' => $status->status ?? 'unknown'
                 ]
             ]);
         } catch (\Exception $e) {
@@ -425,58 +449,28 @@ class BelController extends Controller
         }
     }
 
-    protected function syncJadwalToEsp($schedules)
-    {
-        try {
-            $message = json_encode([
-                'action' => 'sync',
-                'timestamp' => Carbon::now()->toDateTimeString(),
-                'schedules' => $schedules
-            ]);
-
-            $this->mqttService->publish(
-                $this->mqttConfig['topics']['commands']['sync'],
-                $message,
-                1
-            );
-
-            Log::info("Sync schedules sent to MQTT", ['count' => count($schedules)]);
-        } catch (\Exception $e) {
-            Log::error('Error syncing schedules to MQTT: ' . $e->getMessage());
-        }
-    }
-
     public function syncSchedule()
     {
         try {
             $schedules = JadwalBel::active()
                 ->get()
-                ->map(function ($item) {
-                    return [
-                        'hari' => $item->hari,
-                        'waktu' => Carbon::parse($item->waktu)->format('H:i'), // Pastikan format waktu sesuai
-                        'file_number' => $item->file_number
-                    ];
-                });
-
-            $message = json_encode([
-                'action' => 'sync',
-                'timestamp' => Carbon::now()->toDateTimeString(),
-                'schedules' => $schedules
-            ]);
-
-            Log::info("Sync message sent to MQTT", ['message' => $message]); // Debugging
+                ->map(fn($item) => [
+                    'hari' => $item->hari,
+                    'waktu' => Carbon::parse($item->waktu)->format('H:i'),
+                    'file_number' => $item->file_number
+                ]);
 
             $this->mqttService->publish(
                 $this->mqttConfig['topics']['commands']['sync'],
-                $message,
+                json_encode([
+                    'action' => 'sync',
+                    'timestamp' => Carbon::now()->toDateTimeString(),
+                    'schedules' => $schedules
+                ]),
                 1
             );
 
-            Status::updateOrCreate(
-                ['id' => 1], 
-                ['last_sync' => Carbon::now()]
-            );
+            Status::updateOrCreate(['id' => 1], ['last_sync' => Carbon::now()]);
 
             return response()->json([
                 'success' => true,
@@ -495,20 +489,26 @@ class BelController extends Controller
         }
     }
 
-    protected function syncSchedules()
+    protected function syncSchedules(): void
     {
         try {
             $schedules = JadwalBel::active()
                 ->get()
-                ->map(function ($item) {
-                    return [
-                        'hari' => $item->hari,
-                        'waktu' => Carbon::parse($item->waktu)->format('H:i:s'),
-                        'file_number' => $item->file_number
-                    ];
-                });
+                ->map(fn($item) => [
+                    'hari' => $item->hari,
+                    'waktu' => Carbon::parse($item->waktu)->format('H:i:s'),
+                    'file_number' => $item->file_number
+                ]);
 
-            $this->syncJadwalToEsp($schedules);
+            $this->mqttService->publish(
+                $this->mqttConfig['topics']['commands']['sync'],
+                json_encode([
+                    'action' => 'sync',
+                    'timestamp' => Carbon::now()->toDateTimeString(),
+                    'schedules' => $schedules
+                ]),
+                1
+            );
 
             Log::info("Auto sync: " . count($schedules) . " jadwal");
         } catch (\Exception $e) {
@@ -518,36 +518,11 @@ class BelController extends Controller
 
     public function getNextSchedule()
     {
-        $now = now();
-        
-        // Mapping for English to Indonesian day names
-        $dayMap = [
-            'Monday'    => 'Senin',
-            'Tuesday'   => 'Selasa',
-            'Wednesday' => 'Rabu',
-            'Thursday'  => 'Kamis', 
-            'Friday'    => 'Jumat',
-            'Saturday'  => 'Sabtu',
-            'Sunday'    => 'Minggu'
-        ];
-        
-        $currentDayEnglish = $now->format('l'); // Get English day name (e.g. "Saturday")
-        $currentDay = $dayMap[$currentDayEnglish] ?? $currentDayEnglish; // Convert to Indonesian
-        
+        $now = Carbon::now();
+        $currentDay = self::DAY_MAP[$now->format('l')] ?? $now->format('l');
         $currentTime = $now->format('H:i:s');
     
-        // Correct day order (Monday-Sunday)
-        $dayOrder = [
-            'Senin' => 1,
-            'Selasa' => 2,
-            'Rabu' => 3,
-            'Kamis' => 4,
-            'Jumat' => 5,
-            'Sabtu' => 6,
-            'Minggu' => 7
-        ];
-    
-        // 1. First try to find today's upcoming ACTIVE schedules
+        // 1. Try to find today's upcoming ACTIVE schedules
         $todaysSchedule = JadwalBel::where('is_active', true)
             ->where('hari', $currentDay)
             ->where('waktu', '>', $currentTime)
@@ -564,39 +539,33 @@ class BelController extends Controller
             ->orderBy('waktu')
             ->get();
     
-        $currentDayValue = $dayOrder[$currentDay] ?? 0;
+        $currentDayValue = self::DAY_ORDER[$currentDay] ?? 0;
         $closestSchedule = null;
-        $minDayDiff = 8; // More than 7 days
+        $minDayDiff = 8;
     
         foreach ($allSchedules as $schedule) {
-            $scheduleDayValue = $dayOrder[$schedule->hari] ?? 0;
-            
-            // Calculate days difference
+            $scheduleDayValue = self::DAY_ORDER[$schedule->hari] ?? 0;
             $dayDiff = ($scheduleDayValue - $currentDayValue + 7) % 7;
             
-            // If same day but time passed, add 7 days
             if ($dayDiff === 0 && $schedule->waktu <= $currentTime) {
                 $dayDiff = 7;
             }
     
-            // Find schedule with smallest day difference
             if ($dayDiff < $minDayDiff) {
                 $minDayDiff = $dayDiff;
                 $closestSchedule = $schedule;
             }
         }
     
-        if ($closestSchedule) {
-            return $this->formatScheduleResponse($closestSchedule);
-        }
-    
-        return response()->json([
-            'success' => false,
-            'message' => 'Tidak ada jadwal aktif yang akan datang'
-        ]);
+        return $closestSchedule 
+            ? $this->formatScheduleResponse($closestSchedule)
+            : response()->json([
+                'success' => false,
+                'message' => 'Tidak ada jadwal aktif yang akan datang'
+            ]);
     }
     
-    private function formatScheduleResponse($schedule)
+    private function formatScheduleResponse(JadwalBel $schedule)
     {
         return response()->json([
             'success' => true,
@@ -609,7 +578,59 @@ class BelController extends Controller
         ]);
     }
 
-    protected function validateSchedule(Request $request)
+    // public function history(Request $request)
+    // {
+    //     try {
+    //         $query = BellHistory::query()->latest('ring_time');
+            
+    //         if ($request->filled('date')) {
+    //             $query->whereDate('ring_time', $request->date);
+    //         }
+            
+    //         if ($request->filled('search')) {
+    //             $query->where(function($q) use ($request) {
+    //                 $q->where('hari', 'like', '%'.$request->search.'%')
+    //                   ->orWhere('file_number', 'like', '%'.$request->search.'%')
+    //                   ->orWhere('trigger_type', 'like', '%'.$request->search.'%');
+    //             });
+    //         }
+            
+    //         return view('admin.bel.history', [
+    //             'histories' => $query->paginate(15)
+    //         ]);
+    //     } catch (\Exception $e) {
+    //         Log::error('Error fetching history: ' . $e->getMessage());
+    //         return back()->with('error', 'Gagal memuat riwayat bel');
+    //     }
+    // }
+    
+    public function logEvent(Request $request)
+    {
+        $validated = $request->validate([
+            'hari' => 'required|string',
+            'waktu' => 'required|date_format:H:i:s',
+            'file_number' => 'required|string|size:4',
+            'trigger_type' => 'required|in:schedule,manual',
+            'volume' => 'sometimes|integer|min:1|max:30',
+            'repeat' => 'sometimes|integer|min:1|max:5'
+        ]);
+
+        try {
+            return response()->json([
+                'success' => true,
+                'message' => 'Bell event logged',
+                'data' => BellHistory::create($validated)
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to log bell event',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    protected function validateSchedule(Request $request): array
     {
         return $request->validate([
             'hari' => 'required|in:' . implode(',', JadwalBel::DAYS),
@@ -619,79 +640,8 @@ class BelController extends Controller
         ]);
     }
 
-    protected function logActivity($action, JadwalBel $schedule)
+    protected function logActivity(string $action, JadwalBel $schedule): void
     {
         Log::info("{$action} - ID: {$schedule->id}, Hari: {$schedule->hari}, Waktu: {$schedule->waktu}, File: {$schedule->file_number}");
-    }
-
-    protected function logMqttActivity($action, $message)
-    {
-        $this->mqttService->publish(
-            $this->mqttConfig['topics']['system']['logs'],
-            json_encode([
-                'action' => $action,
-                'message' => $message,
-                'timestamp' => Carbon::now()->toDateTimeString()
-            ]),
-            0
-        );
-    }
-    
-    protected function handleBellRing(string $message)
-    {
-        try {
-            $data = json_decode($message, true);
-            
-            // Validasi data yang diterima
-            if (!isset($data['hari']) || !isset($data['waktu']) || !isset($data['file_number']) || !isset($data['trigger_type'])) {
-                Log::error('Invalid bell ring data format');
-                return;
-            }
-
-            // Simpan ke history
-            BellHistory::create([
-                'hari' => $data['hari'],
-                'waktu' => $data['waktu'],
-                'file_number' => $data['file_number'],
-                'trigger_type' => $data['trigger_type'],
-                'ring_time' => Carbon::now(),
-                'volume' => $data['volume'] ?? 15, // Default volume 15
-                'repeat' => $data['repeat'] ?? 1   // Default repeat 1x
-            ]);
-
-            Log::info('Bell ring recorded to history', ['data' => $data]);
-
-        } catch (\Exception $e) {
-            Log::error('Error handling bell ring: ' . $e->getMessage());
-        }
-    }
-
-    public function history(Request $request)
-    {
-        try {
-            $query = BellHistory::query()->latest('ring_time');
-            
-            if ($request->filled('date')) {
-                $query->whereDate('ring_time', $request->date);
-            }
-            
-            if ($request->filled('search')) {
-                $query->where(function($q) use ($request) {
-                    $q->where('hari', 'like', '%'.$request->search.'%')
-                    ->orWhere('file_number', 'like', '%'.$request->search.'%')
-                    ->orWhere('trigger_type', 'like', '%'.$request->search.'%');
-                });
-            }
-            
-            $histories = $query->paginate(15);
-            
-            return view('admin.bel.history', [
-                'histories' => $histories
-            ]);
-            
-        } catch (\Exception $e) {
-            Log::error('Error fetching history: ' . $e->getMessage());
-            return back()->with('error', 'Gagal memuat riwayat bel');
-        }
     }
 }

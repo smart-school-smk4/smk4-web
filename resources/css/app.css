@@ -1,3 +1,66 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+.btn-blue {
+    @apply bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center transition duration-300 shadow-md hover:shadow-lg text-sm;
+}
+.btn-purple {
+    @apply bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg flex items-center transition duration-300 shadow-md hover:shadow-lg text-sm;
+}
+.btn-yellow {
+    @apply bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg flex items-center transition duration-300 shadow hover:shadow-md text-sm;
+}
+.btn-green {
+    @apply bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg flex items-center transition duration-300 shadow hover:shadow-md text-sm;
+}
+.btn-gray {
+    @apply bg-gray-100 hover:bg-gray-200 text-gray-800 px-4 py-2 rounded-lg inline-flex items-center transition duration-300 border border-gray-300 text-sm;
+}
+.dropdown-item {
+    @apply block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left flex items-center;
+}
+.select-input {
+    @apply block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 py-2 text-sm;
+}
+.search-input {
+    @apply block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-10 py-2 text-sm;
+}
+
+
+
+.btn-primary {
+    @apply px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl hover:from-blue-600 hover:to-indigo-700 transition duration-300 shadow-md hover:shadow-lg flex items-center;
+}
+
+.btn-secondary {
+    @apply px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-300 flex items-center shadow-sm hover:shadow-md;
+}
+
+.btn-reset {
+    @apply px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition duration-300 flex items-center;
+}
+
+.form-input {
+    @apply block w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-xl shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 dark:focus:ring-blue-700 transition duration-300 bg-white dark:bg-gray-700 text-gray-900 dark:text-white;
+}
+
+.form-select {
+    @apply block w-full pl-3 pr-10 py-2 border border-gray-300 dark:border-gray-600 rounded-xl shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 dark:focus:ring-blue-700 transition duration-300 bg-white dark:bg-gray-700 text-gray-900 dark:text-white;
+}
+
+.badge-blue {
+    @apply px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-100;
+}
+
+.badge-purple {
+    @apply px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-gradient-to-r from-purple-100 to-purple-200 dark:from-purple-900 dark:to-purple-800 text-purple-800 dark:text-purple-200;
+}
+
+.badge-green {
+    @apply px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-gradient-to-r from-green-100 to-green-200 dark:from-green-900 dark:to-green-800 text-green-800 dark:text-green-200;
+}
+
+.badge-gray {
+    @apply px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded-full;
+}

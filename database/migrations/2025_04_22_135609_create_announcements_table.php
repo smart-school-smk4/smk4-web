@@ -10,18 +10,21 @@ return new class extends Migration
     {
         Schema::create('announcements', function (Blueprint $table) {
             $table->id();
-            $table->string('mode'); // 'reguler' atau 'tts'
+            $table->string('mode');
             $table->text('message');
             $table->string('audio_path')->nullable();
             $table->string('voice')->nullable();
             $table->integer('speed')->nullable();
-            $table->foreignId('user_id')->constrained()->onDelete('cascade');
+            $table->boolean('is_active')->default(true);
+            $table->string('status')->default('pending');
+            $table->text('error_message')->nullable();
+            $table->string('relay_state')->default('OFF'); // Tambahkan kolom ini
             $table->timestamp('sent_at')->useCurrent();
             $table->timestamps();
             
             $table->index('mode');
             $table->index('sent_at');
-            $table->index('user_id');
+            $table->index('relay_state'); // Tambahkan index
         });
 
         // Perbaikan utama: Explicitly specify table names
@@ -29,6 +32,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('announcement_id')->constrained('announcements')->onDelete('cascade');
             $table->foreignId('ruangan_id')->constrained('ruangan')->onDelete('cascade');
+            $table->string('relay_state_at_time')->nullable(); // State saat pengumuman dikirim
             $table->timestamps();
             
             $table->unique(['announcement_id', 'ruangan_id']);

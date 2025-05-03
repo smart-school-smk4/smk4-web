@@ -14,11 +14,18 @@ class Ruangan extends Model
     protected $fillable = [
         'nama_ruangan',
         'id_kelas',
-        'id_jurusan'
+        'id_jurusan',
+        'relay_state', // Ubah dari status_relay menjadi relay_state
+        'mqtt_topic' // Tambahkan kolom untuk custom MQTT topic
     ];
 
+    protected $casts = [
+        'relay_state' => 'string' // Ubah menjadi string untuk menyimpan 'ON'/'OFF'
+    ];
+
+
     /**
-     * Relasi ke model Kelas
+     * Relationship with Kelas
      */
     public function kelas()
     {
@@ -26,17 +33,15 @@ class Ruangan extends Model
     }
 
     /**
-     * Relasi ke model Jurusan
+     * Relationship with Jurusan
      */
     public function jurusan()
     {
         return $this->belongsTo(Jurusan::class, 'id_jurusan');
     }
 
-    // Di app/Models/Ruangan.php
-
     /**
-     * Relasi many-to-many ke announcements
+     * Relationship with Announcements (many-to-many)
      */
     public function announcements()
     {
@@ -44,7 +49,7 @@ class Ruangan extends Model
     }
 
     /**
-     * Accessor untuk nama ruangan
+     * Accessor for uppercase room name
      */
     public function getNamaRuanganAttribute($value)
     {
@@ -52,24 +57,18 @@ class Ruangan extends Model
     }
 
     /**
-     * Mutator untuk nama ruangan
+     * Scope for active relay status
      */
-    public function setNamaRuanganAttribute($value)
+    public function scopeRelayActive($query)
     {
-        $this->attributes['nama_ruangan'] = strtolower($value);
+        return $query->where('status_relay', true);
     }
 
     /**
-     * Scope untuk pencarian ruangan
+     * Scope for inactive relay status
      */
-    public function scopeSearch($query, $term)
+    public function scopeRelayInactive($query)
     {
-        return $query->where('nama_ruangan', 'like', "%{$term}%")
-                    ->orWhereHas('kelas', function($q) use ($term) {
-                        $q->where('nama_kelas', 'like', "%{$term}%");
-                    })
-                    ->orWhereHas('jurusan', function($q) use ($term) {
-                        $q->where('nama_jurusan', 'like', "%{$term}%");
-                    });
+        return $query->where('status_relay', false);
     }
 }

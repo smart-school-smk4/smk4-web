@@ -6,41 +6,168 @@ use PhpMqtt\Client\MqttClient;
 use PhpMqtt\Client\ConnectionSettings;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
+use App\Models\BellHistory;
+use App\Events\BellRingEvent;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\Validator;
 
 class MqttService
 {
-    protected $client;
-    protected $config;
-    protected $isConnected = false;
-    protected $reconnectAttempts = 0;
-    protected $lastActivityTime;
-    protected $connectionLock = false;
+    protected MqttClient $client;
+    protected array $config;
+    protected bool $isConnected = false;
+    protected int $reconnectAttempts = 0;
+    protected bool $connectionLock = false;
+    protected array $subscriptions = [];
+    protected const MAX_RECONNECT_ATTEMPTS = 5;
+    protected const RECONNECT_DELAY = 5;
 
     public function __construct()
     {
-        $this->config = config('mqtt.connections.bel_sekolah');
+        $this->config = config('mqtt');
         $this->initializeConnection();
     }
 
     protected function initializeConnection(): void
     {
         try {
+            $connectionConfig = $this->getConnectionConfig();
             $this->client = new MqttClient(
-                $this->config['host'],
-                $this->config['port'],
-                $this->config['client_id'] . '_' . uniqid()
+                $connectionConfig['host'],
+                $connectionConfig['port'],
+                $this->generateClientId($connectionConfig)
             );
 
             $this->connect();
+            $this->subscribeToBellTopics();
         } catch (\Exception $e) {
             Log::error('MQTT Initialization failed: ' . $e->getMessage());
             $this->scheduleReconnect();
         }
     }
 
+    protected function getConnectionConfig(): array
+    {
+        return $this->config['connections'][$this->config['default_connection']];
+    }
+
+    protected function generateClientId(array $config): string
+    {
+        return $config['client_id'] . '_' . uniqid();
+    }
+
+    protected function subscribeToBellTopics(): void
+    {
+        $topics = [
+            'bell_schedule' => fn($t, $m) => $this->handleBellNotification($m, 'bell_schedule'),
+            'bell_manual' => fn($t, $m) => $this->handleBellNotification($m, 'bell_manual')
+        ];
+
+        foreach ($topics as $type => $callback) {
+            $this->subscribe($this->config['topics']['events'][$type], $callback);
+        }
+    }
+
+    protected function handleBellNotification(string $message, string $triggerType): void
+    {
+        Log::debug("Processing {$triggerType} bell event", compact('message', 'triggerType'));
+
+        try {
+            $data = $this->validateBellData($message, $triggerType);
+            $history = $this->createBellHistory($data, $triggerType);
+            
+            $this->logBellEvent($history, $triggerType);
+            $this->dispatchBellEvent($history);
+        } catch (\JsonException $e) {
+            Log::error("Invalid JSON format in bell notification", [
+                'error' => $e->getMessage(),
+                'message' => $message
+            ]);
+        } catch (\InvalidArgumentException $e) {
+            Log::error("Validation failed for bell event", [
+                'error' => $e->getMessage(),
+                'data' => $data ?? null
+            ]);
+        } catch (\Exception $e) {
+            Log::error("Failed to process bell notification", [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'trigger_type' => $triggerType
+            ]);
+        }
+    }
+
+    protected function validateBellData(string $message, string $triggerType): array
+    {
+        $data = json_decode($message, true, 512, JSON_THROW_ON_ERROR);
+        
+        $rules = [
+            'hari' => 'required|in:Senin,Selasa,Rabu,Kamis,Jumat,Sabtu,Minggu',
+            'waktu' => 'required|date_format:H:i:s',
+            'file_number' => 'required|string|size:4|regex:/^[0-9]{4}$/',
+            'volume' => 'sometimes|integer|min:0|max:30',
+            'repeat' => 'sometimes|integer|min:1|max:5'
+        ];
+
+        $validator = Validator::make($data, $rules);
+
+        if ($validator->fails()) {
+            throw new \InvalidArgumentException(
+                'Invalid bell data: ' . $validator->errors()->first()
+            );
+        }
+
+        return $data;
+    }
+
+    protected function createBellHistory(array $data, string $triggerType): BellHistory
+    {
+        return BellHistory::create([
+            'hari' => $data['hari'],
+            'waktu' => $this->normalizeTime($data['waktu']),
+            'file_number' => $data['file_number'],
+            'trigger_type' => $triggerType === 'bell_schedule' ? 'schedule' : 'manual',
+            'volume' => $data['volume'] ?? 15,
+            'repeat' => $data['repeat'] ?? 1,
+            'ring_time' => now()
+        ]);
+    }
+
+    protected function logBellEvent(BellHistory $history, string $triggerType): void
+    {
+        Log::info("Bell event saved successfully", [
+            'id' => $history->id,
+            'type' => $triggerType,
+            'hari' => $history->hari,
+            'waktu' => $history->waktu,
+            'file' => $history->file_number
+        ]);
+    }
+
+    protected function dispatchBellEvent(BellHistory $history): void
+    {
+        event(new BellRingEvent([
+            'id' => $history->id,
+            'hari' => $history->hari,
+            'waktu' => $history->waktu,
+            'file_number' => $history->file_number,
+            'trigger_type' => $history->trigger_type,
+            'ring_time' => $history->ring_time->toDateTimeString()
+        ]));
+    }
+
+    private function normalizeTime(string $time): string
+    {
+        try {
+            return Carbon::createFromFormat('H:i:s', $time)->format('H:i:s');
+        } catch (\Exception $e) {
+            $parts = explode(':', $time);
+            return sprintf("%02d:%02d:%02d", $parts[0] ?? 0, $parts[1] ?? 0, $parts[2] ?? 0);
+        }
+    }
+
     public function connect(): bool
     {
-        // Prevent multiple simultaneous connection attempts
         if ($this->connectionLock) {
             return false;
         }
@@ -53,131 +180,114 @@ class MqttService
                 return true;
             }
 
-            $connectionSettings = (new ConnectionSettings)
-                ->setKeepAliveInterval($this->config['connection_settings']['keep_alive_interval'])
-                ->setConnectTimeout($this->config['connection_settings']['connect_timeout'])
-                ->setLastWillTopic($this->config['connection_settings']['last_will']['topic'])
-                ->setLastWillMessage($this->config['connection_settings']['last_will']['message'])
-                ->setLastWillQualityOfService($this->config['connection_settings']['last_will']['quality_of_service'])
-                ->setRetainLastWill($this->config['connection_settings']['last_will']['retain'])
-                ->setUseTls(false);
-
+            $connectionSettings = $this->createConnectionSettings();
             $this->client->connect($connectionSettings, true);
-            $this->isConnected = true;
-            $this->reconnectAttempts = 0;
-            $this->lastActivityTime = time();
-
-            // Store connection status in cache for UI
-            Cache::put('mqtt_status', 'connected', 60);
-
-            Log::info('MQTT Connected successfully to ' . $this->config['host']);
-            $this->connectionLock = false;
+            
+            $this->handleSuccessfulConnection();
             return true;
         } catch (\Exception $e) {
-            Log::error('MQTT Connection failed: ' . $e->getMessage());
-            $this->handleDisconnection();
+            $this->handleConnectionFailure($e);
+            return false;
+        } finally {
             $this->connectionLock = false;
+        }
+    }
+
+    protected function createConnectionSettings(): ConnectionSettings
+    {
+        $connectionConfig = $this->getConnectionConfig()['connection_settings'];
+        $lastWill = $connectionConfig['last_will'];
+
+        return (new ConnectionSettings)
+            ->setUsername($connectionConfig['username'] ?? null)
+            ->setPassword($connectionConfig['password'] ?? null)
+            ->setKeepAliveInterval($connectionConfig['keep_alive_interval'])
+            ->setConnectTimeout($connectionConfig['connect_timeout'])
+            ->setLastWillTopic($lastWill['topic'])
+            ->setLastWillMessage($lastWill['message'])
+            ->setLastWillQualityOfService($lastWill['quality_of_service'])
+            ->setRetainLastWill($lastWill['retain'])
+            ->setUseTls(false);
+    }
+
+    protected function handleSuccessfulConnection(): void
+    {
+        $this->isConnected = true;
+        $this->reconnectAttempts = 0;
+        $this->resubscribeToTopics();
+        
+        Cache::put('mqtt_status', 'connected', 60);
+        Log::info('MQTT Connected successfully');
+    }
+
+    protected function resubscribeToTopics(): void
+    {
+        foreach ($this->subscriptions as $topic => $callback) {
+            $this->client->subscribe($topic, $callback);
+        }
+    }
+
+    protected function handleConnectionFailure(\Exception $e): void
+    {
+        Log::error('MQTT Connection failed: ' . $e->getMessage());
+        $this->handleDisconnection();
+    }
+
+    public function subscribe(string $topic, callable $callback, int $qos = 0): bool
+    {
+        $this->subscriptions[$topic] = $callback;
+        
+        if (!$this->isConnected) {
+            return false;
+        }
+
+        try {
+            $this->client->subscribe($topic, $callback, $qos);
+            Log::debug("MQTT Subscribed to {$topic}");
+            return true;
+        } catch (\Exception $e) {
+            Log::error("MQTT Subscribe failed to {$topic}: " . $e->getMessage());
             return false;
         }
     }
 
-    protected function checkConnection(): void
+    public function publish(string $topic, string $message, int $qos = 0, bool $retain = false): bool
     {
-        try {
-            // Simple ping test with short timeout
-            $this->client->publish($this->config['connection_settings']['last_will']['topic'], 'ping', 0, false);
-            $this->lastActivityTime = time();
-        } catch (\Exception $e) {
-            $this->handleDisconnection();
-        }
-    }
-
-    public function ensureConnected(): bool
-    {
-        if (!$this->isConnected) {
-            return $this->connect();
-        }
-
-        // Check if connection is stale
-        if ((time() - $this->lastActivityTime) > $this->config['connection_settings']['keep_alive_interval']) {
-            $this->checkConnection();
-        }
-
-        return $this->isConnected;
-    }
-
-    protected function handleDisconnection(): void
-    {
-        $this->isConnected = false;
-        Cache::put('mqtt_status', 'disconnected', 60);
-        Log::warning('MQTT Disconnection detected');
-        $this->scheduleReconnect();
-    }
-
-    protected function scheduleReconnect(): void
-    {
-        $maxAttempts = $this->config['connection_settings']['auto_reconnect']['max_reconnect_attempts'] ?? 5;
-        $delay = $this->config['connection_settings']['auto_reconnect']['delay_between_reconnect_attempts'] ?? 2;
-
-        if ($this->reconnectAttempts < $maxAttempts) {
-            $this->reconnectAttempts++;
-            $actualDelay = $delay * $this->reconnectAttempts;
-
-            Log::info("Attempting MQTT reconnect ({$this->reconnectAttempts}/{$maxAttempts}) in {$actualDelay} seconds");
-
-            sleep($actualDelay);
-            $this->connect();
-        } else {
-            Log::error('MQTT Max reconnect attempts reached');
-            Cache::put('mqtt_status', 'disconnected', 60);
-        }
-    }
-
-    public function isConnected(): bool
-    {
-        return $this->isConnected;
-    }
-
-    public function publish($topic, $message, $qos = 0, $retain = false): bool
-    {
-        if (!$this->ensureConnected()) {
-            // Store message in queue if disconnected
-            $this->storeMessageInQueue($topic, $message, $qos, $retain);
+        if (!$this->isConnected && !$this->connect()) {
+            $this->queueMessage($topic, $message, $qos, $retain);
             return false;
         }
 
         try {
             $this->client->publish($topic, $message, $qos, $retain);
-            $this->lastActivityTime = time();
-            Log::debug("MQTT Published to {$topic}: {$message}");
+            Log::debug("MQTT Published to {$topic}");
             return true;
         } catch (\Exception $e) {
-            $this->handleDisconnection();
-            Log::error("MQTT Publish failed to {$topic}: " . $e->getMessage());
-
-            // Store message in queue if failed
-            $this->storeMessageInQueue($topic, $message, $qos, $retain);
+            $this->handlePublishFailure($e, $topic, $message, $qos, $retain);
             return false;
         }
     }
 
-    protected function storeMessageInQueue($topic, $message, $qos, $retain): void
+    protected function handlePublishFailure(\Exception $e, string $topic, string $message, int $qos, bool $retain): void
+    {
+        Log::error("MQTT Publish failed to {$topic}: " . $e->getMessage());
+        $this->handleDisconnection();
+        $this->queueMessage($topic, $message, $qos, $retain);
+    }
+
+    protected function queueMessage(string $topic, string $message, int $qos, bool $retain): void
     {
         $queue = Cache::get('mqtt_message_queue', []);
-        $queue[] = [
-            'topic' => $topic,
-            'message' => $message,
-            'qos' => $qos,
-            'retain' => $retain,
+        $queue[] = compact('topic', 'message', 'qos', 'retain') + [
             'attempts' => 0,
-            'timestamp' => time(),
+            'timestamp' => now()->toDateTimeString(),
         ];
         Cache::put('mqtt_message_queue', $queue, 3600);
     }
 
     public function processMessageQueue(): void
     {
-        if (!$this->isConnected()) {
+        if (!$this->isConnected) {
             return;
         }
 
@@ -186,17 +296,16 @@ class MqttService
 
         foreach ($queue as $message) {
             if ($message['attempts'] >= 3) {
-                continue; // Skip messages that failed too many times
+                continue;
             }
 
             try {
-                $this->client->publish(
+                $this->publish(
                     $message['topic'],
                     $message['message'],
                     $message['qos'],
                     $message['retain']
                 );
-                $this->lastActivityTime = time();
             } catch (\Exception $e) {
                 $message['attempts']++;
                 $remainingMessages[] = $message;
@@ -206,105 +315,42 @@ class MqttService
         Cache::put('mqtt_message_queue', $remainingMessages, 3600);
     }
 
-    public function subscribe($topic, $callback, $qos = 0): bool
+    public function isConnected(): bool
     {
-        if (!$this->ensureConnected()) {
-            return false;
-        }
-
-        try {
-            $this->client->subscribe($topic, $callback, $qos);
-            $this->lastActivityTime = time();
-            Log::info("MQTT Subscribed to {$topic}");
-            return true;
-        } catch (\Exception $e) {
-            $this->handleDisconnection();
-            Log::error("MQTT Subscribe failed to {$topic}: " . $e->getMessage());
-            return false;
-        }
+        return $this->isConnected;
     }
 
-    public function loop(bool $allowSleep = true): void
+    protected function handleDisconnection(): void
     {
-        if ($this->isConnected()) {
-            try {
-                $this->client->loop($allowSleep);
-                $this->lastActivityTime = time();
-                $this->processMessageQueue();
-            } catch (\Exception $e) {
-                $this->handleDisconnection();
-            }
-        } else {
+        $this->isConnected = false;
+        Cache::put('mqtt_status', 'disconnected', 60);
+        $this->scheduleReconnect();
+    }
+
+    protected function scheduleReconnect(): void
+    {
+        $reconnectConfig = $this->getConnectionConfig()['connection_settings']['auto_reconnect'];
+        
+        if (!$reconnectConfig['enabled']) {
+            return;
+        }
+        
+        if ($this->reconnectAttempts < $reconnectConfig['max_reconnect_attempts']) {
+            $this->reconnectAttempts++;
+            $delay = $reconnectConfig['delay_between_reconnect_attempts'] * $this->reconnectAttempts;
+            
+            Log::info("MQTT Reconnect attempt {$this->reconnectAttempts} in {$delay} seconds");
+            sleep($delay);
             $this->connect();
+        } else {
+            Log::error('MQTT Max reconnect attempts reached');
         }
     }
-
-    public function disconnect(): void
-    {
-        if ($this->isConnected) {
-            try {
-                $this->client->disconnect();
-                $this->isConnected = false;
-                Cache::put('mqtt_status', 'disconnected', 60);
-                Log::info('MQTT Disconnected gracefully');
-            } catch (\Exception $e) {
-                Log::error('MQTT Disconnection error: ' . $e->getMessage());
-            }
-        }
-    }
-
-    public static function quickPublish($topic, $message, $qos = 0, $retain = false): bool
-    {
-        try {
-            $config = config('mqtt.connections.bel_sekolah');
-    
-            $mqtt = new MqttClient(
-                $config['host'],
-                $config['port'],
-                'quick-publish-' . uniqid()
-            );
-    
-            $connectionSettings = (new ConnectionSettings)
-                ->setConnectTimeout($config['connection_settings']['connect_timeout'] ?? 2)
-                ->setUseTls(false);
-    
-            $mqtt->connect($connectionSettings, true);
-    
-            $mqtt->publish($topic, $message, $qos, $retain);
-            $mqtt->disconnect();
-            return true;
-        } catch (\Throwable $e) {
-            Log::error('Quick MQTT publish failed: ' . $e->getMessage());
-            return false;
-        }
-    }
-    
 
     public function __destruct()
     {
-        // Disconnect only if explicitly needed
         if ($this->isConnected) {
-            $this->disconnect();
+            $this->client->disconnect();
         }
-    }
-    
-    public function sendAnnouncement($payload)
-    {
-        $topic = 'bel/sekolah/pengumuman';
-        
-        // Publish utama
-        $this->publish($topic, json_encode($payload), 1, false);
-        
-        // Jika TTS, kirim perintah stop setelah delay
-        if ($payload['type'] === 'tts' && $payload['auto_stop'] ?? false) {
-            
-            $stopPayload = [
-                'type' => 'stop_tts',
-                'target_ruangans' => $payload['target_ruangans'],
-                'timestamp' => now()->toDateTimeString()
-            ];
-            $this->publish($topic, json_encode($stopPayload), 1, false);
-        }
-        
     }
 }

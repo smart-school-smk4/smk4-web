@@ -5,7 +5,7 @@ declare(strict_types=1);
 use PhpMqtt\Client\MqttClient;
 
 return [
-    'default_connection' => 'sekolah',
+    'default_connection' => 'bel_sekolah',
 
     'connections' => [
         'bel_sekolah' => [
@@ -14,6 +14,11 @@ return [
             'client_id' => env('MQTT_CLIENT_ID', 'laravel_bel_' . bin2hex(random_bytes(4))),
             'use_clean_session' => false,
             'connection_settings' => [
+                'auto_reconnect' => [
+                    'enabled' => true,
+                    'max_reconnect_attempts' => 5,
+                    'delay_between_reconnect_attempts' => 3,
+                ],
                 'last_will' => [
                     'topic' => 'bel/sekolah/status/backend',
                     'message' => json_encode(['status' => 'offline']),
@@ -30,19 +35,30 @@ return [
     // Topic configuration
     'topics' => [
         'commands' => [
+            'announcement' => 'announcement/command',
             'ring' => 'bel/sekolah/command/ring',
             'sync' => 'bel/sekolah/command/sync',
             'status' => 'bel/sekolah/command/status',
+            'relay_control' => 'ruangan/+/relay/control',
         ],
         'responses' => [
+            'announcement_ack' => 'announcement/response/ack',
+            'announcement_error' => 'announcement/response/error',
             'status' => 'bel/sekolah/response/status',
             'ack' => 'bel/sekolah/response/ack',
-            'bell_ring' => 'bel/sekolah/response/ring',
+            'relay_status' => 'ruangan/+/relay/status',
         ],
-        'announcements' => [
-            'general' => 'bel/sekolah/pengumuman',
-            'emergency' => 'bel/sekolah/emergency',
-            'feedback' => 'bel/sekolah/status/pengumuman',
+        'events' => [  // [!++ Add this section ++!]
+            'bell_schedule' => 'bel/sekolah/events/schedule',
+            'bell_manual' => 'bel/sekolah/events/manual'
         ],
+    ],
+
+    // QoS Levels
+    'qos_levels' => [
+        'default' => 0,
+        'announcement' => 1,
+        'relay_control' => 1, // QoS 1 untuk kontrol relay
+        'status_updates' => 1,
     ],
 ];

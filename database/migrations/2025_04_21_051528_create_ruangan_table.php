@@ -11,16 +11,15 @@ return new class extends Migration
         Schema::create('ruangan', function (Blueprint $table) {
             $table->id();
             $table->string('nama_ruangan');
-            
-            // Foreign keys
             $table->foreignId('id_kelas')->constrained('kelas')->onDelete('cascade');
             $table->foreignId('id_jurusan')->constrained('jurusan')->onDelete('cascade');
-            
+            $table->string('relay_state')->default('OFF'); // Ubah tipe data
+            $table->string('mqtt_topic')->nullable(); // Untuk custom topic per ruangan
             $table->timestamps();
             
-            // Tambahkan index untuk pencarian
             $table->index('nama_ruangan');
             $table->index(['id_kelas', 'id_jurusan']);
+            $table->index('relay_state');
         });
     }
 

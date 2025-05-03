@@ -9,7 +9,7 @@ class Announcement extends Model
 {
     use HasFactory;
 
-    protected $table = 'announcements';
+    protected $table = 'announcements'; // Pastikan konsisten
 
     protected $fillable = [
         'mode',
@@ -17,34 +17,41 @@ class Announcement extends Model
         'audio_path',
         'voice',
         'speed',
-        'ruangan',
-        'user_id',
-        'sent_at'
+        'is_active',
+        'status',
+        'error_message',
+        'sent_at',
+        'relay_state' // Tambahkan ini
+    ];
+
+    protected $attributes = [
+        'is_active' => true,
+        'status' => 'pending',
+        'relay_state' => 'OFF' // Default value
     ];
 
     protected $casts = [
-        'ruangan' => 'array',
+        'is_active' => 'boolean',
         'sent_at' => 'datetime'
     ];
 
-    /**
-     * Relasi ke user yang membuat pengumuman
-     */
-    public function user()
+    // Tambahkan aksesor untuk relay
+    public function getRelayStateDescriptionAttribute()
     {
-        return $this->belongsTo(User::class);
+        return $this->relay_state === 'ON' ? 'Relay Menyala' : 'Relay Mati';
     }
 
     /**
-     * Relasi many-to-many ke ruangan
+     * Relationship with Ruangan (many-to-many)
      */
     public function ruangans()
     {
-        return $this->belongsToMany(Ruangan::class, 'announcement_ruangan');
+        return $this->belongsToMany(Ruangan::class, 'announcement_ruangan')
+                   ->withTimestamps();
     }
 
     /**
-     * Scope untuk pengumuman reguler
+     * Scope for regular announcements
      */
     public function scopeReguler($query)
     {
@@ -52,7 +59,7 @@ class Announcement extends Model
     }
 
     /**
-     * Scope untuk pengumuman TTS
+     * Scope for TTS announcements
      */
     public function scopeTts($query)
     {
@@ -60,21 +67,23 @@ class Announcement extends Model
     }
 
     /**
-     * Scope untuk pencarian
+     * Scope for delivered announcements
      */
-    public function scopeSearch($query, $search)
+    public function scopeDelivered($query)
     {
-        return $query->where('message', 'like', "%{$search}%")
-                    ->orWhereHas('ruangans', function($q) use ($search) {
-                        $q->where('nama_ruangan', 'like', "%{$search}%");
-                    })
-                    ->orWhereHas('user', function($q) use ($search) {
-                        $q->where('name', 'like', "%{$search}%");
-                    });
+        return $query->where('status', 'delivered');
     }
 
     /**
-     * Accessor untuk audio URL
+     * Scope for failed announcements
+     */
+    public function scopeFailed($query)
+    {
+        return $query->where('status', 'failed');
+    }
+
+    /**
+     * Accessor for audio URL
      */
     public function getAudioUrlAttribute()
     {
@@ -82,10 +91,34 @@ class Announcement extends Model
     }
 
     /**
-     * Format tanggal pengiriman
+     * Accessor for formatted sent time
      */
     public function getFormattedSentAtAttribute()
     {
         return $this->sent_at->format('d M Y H:i:s');
+    }
+
+    /**
+     * Accessor untuk pesan aktivasi
+     */
+    public function getActivationMessageAttribute()
+    {
+        return $this->is_active ? 'Aktivasi Ruangan' : 'Deaktivasi Ruangan';
+    }
+
+    /**
+     * Cek apakah pengumuman reguler
+     */
+    public function isReguler()
+    {
+        return $this->mode === 'reguler';
+    }
+
+    /**
+     * Cek apakah pengumuman TTS
+     */
+    public function isTts()
+    {
+        return $this->mode === 'tts';
     }
 }

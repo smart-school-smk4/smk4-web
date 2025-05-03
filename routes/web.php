@@ -13,6 +13,7 @@ use App\Http\Controllers\PresensiController;
 use App\Http\Controllers\SiswaController;
 use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\RuanganController;
+use App\Http\Controllers\BellHistoryController;
 
 // Public routes
 Route::get('/', [IndexController::class, 'index'])->name('index');
@@ -97,7 +98,12 @@ Route::middleware(['auth'])->group(function () {
             Route::put('/{id}', 'update')->name('bel.update');
             Route::delete('/{id}', 'destroy')->name('bel.delete');
             Route::delete('/', 'deleteAll')->name('bel.delete-all');
-            Route::get('/history', 'history')->name('bel.history');
+            // Pindahkan history ke dalam group bel untuk konsistensi
+            Route::prefix('history')->controller(BellHistoryController::class)->group(function () {
+                Route::get('/', 'history')->name('bel.history.index');
+                Route::get('/filter', 'filterHistory')->name('bel.history.filter');
+                Route::delete('/{id}', 'destroy')->name('bel.history.destroy');
+    });
         });
 
         // Announcement System
@@ -107,7 +113,7 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/history', 'history')->name('announcement.history');
             Route::get('/{announcement}', 'show')->name('announcement.show');
             Route::delete('/{announcement}', 'destroy')->name('announcement.destroy');
-            Route::post('/tts-preview', 'ttsPreview')->name('announcement.ttsPreview');
+            Route::post('/tts-preview', 'ttsPreview')->name('announcement.tts-preview');
         });
     });
 });

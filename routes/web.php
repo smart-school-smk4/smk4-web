@@ -103,17 +103,14 @@ Route::middleware(['auth'])->group(function () {
                 Route::get('/', 'history')->name('bel.history.index');
                 Route::get('/filter', 'filterHistory')->name('bel.history.filter');
                 Route::delete('/{id}', 'destroy')->name('bel.history.destroy');
-    });
+            });
         });
 
         // Announcement System
         Route::prefix('announcement')->controller(AnnouncementController::class)->group(function () {
-            Route::get('/', 'index')->name('announcement.index');
-            Route::post('/', 'store')->name('announcement.store');
-            Route::get('/history', 'history')->name('announcement.history');
-            Route::get('/{announcement}', 'show')->name('announcement.show');
-            Route::delete('/{announcement}', 'destroy')->name('announcement.destroy');
-            Route::post('/tts-preview', 'ttsPreview')->name('announcement.tts-preview');
+            Route::get('/', 'index')->name('admin.announcement.index');
+            Route::get('/history', 'history')->name('admin.announcement.history');
+            Route::post('/', 'store')->name('admin.announcement.store');
         });
     });
 });

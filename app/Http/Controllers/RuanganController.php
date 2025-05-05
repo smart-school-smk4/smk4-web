@@ -10,8 +10,7 @@ use Illuminate\Http\Request;
 class RuanganController extends Controller
 {
     public function index(){
-        $ruangan = Ruangan::with('jurusan', 'kelas')->get();
-        $ruangan = Ruangan::paginate(10);
+        $ruangan = Ruangan::with('jurusan', 'kelas')->paginate(10);
         return view('admin.ruangan.index', compact('ruangan'));
     }
 

@@ -15,14 +15,12 @@ class Ruangan extends Model
         'nama_ruangan',
         'id_kelas',
         'id_jurusan',
-        'relay_state', // Ubah dari status_relay menjadi relay_state
-        'mqtt_topic' // Tambahkan kolom untuk custom MQTT topic
+        'relay_state'
     ];
 
     protected $casts = [
-        'relay_state' => 'string' // Ubah menjadi string untuk menyimpan 'ON'/'OFF'
+        'relay_state' => 'string'
     ];
-
 
     /**
      * Relationship with Kelas
@@ -56,19 +54,4 @@ class Ruangan extends Model
         return strtoupper($value);
     }
 
-    /**
-     * Scope for active relay status
-     */
-    public function scopeRelayActive($query)
-    {
-        return $query->where('status_relay', true);
-    }
-
-    /**
-     * Scope for inactive relay status
-     */
-    public function scopeRelayInactive($query)
-    {
-        return $query->where('status_relay', false);
-    }
 }

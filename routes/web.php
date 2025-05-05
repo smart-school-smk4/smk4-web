@@ -107,10 +107,19 @@ Route::middleware(['auth'])->group(function () {
         });
 
         // Announcement System
+        // Announcement System
         Route::prefix('announcement')->controller(AnnouncementController::class)->group(function () {
             Route::get('/', 'index')->name('admin.announcement.index');
             Route::get('/history', 'history')->name('admin.announcement.history');
             Route::post('/', 'store')->name('admin.announcement.store');
+            Route::get('/{id}/details', 'details')->name('admin.announcement.details');
+            Route::delete('/{id}', 'destroy')->name('admin.announcement.destroy');
+            
+            // MQTT & Relay
+            Route::get('/check/mqtt', 'checkMqtt')->name('admin.check.mqtt');
+            Route::post('/control-relay', 'controlRelay')->name('admin.announcement.control-relay');
+            Route::get('/relay-status', 'relayStatus')->name('admin.announcement.relay-status');
         });
+
     });
 });

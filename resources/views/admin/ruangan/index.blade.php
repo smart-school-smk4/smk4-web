@@ -41,36 +41,6 @@
                 </div>
             </div>
         </div>
-        
-        <!-- Ruangan Aktif -->
-        <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-green-500 hover:shadow-md transition duration-300">
-            <div class="flex items-center">
-                <div class="p-3 rounded-full bg-green-100">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                </div>
-                <div class="ml-4">
-                    <h3 class="text-sm font-medium text-gray-500">Ruangan Tersedia</h3>
-                    <p class="text-2xl font-bold text-gray-700">{{ $ruangan->count() }}</p>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Ruangan per Jurusan -->
-        <div class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-purple-500 hover:shadow-md transition duration-300">
-            <div class="flex items-center">
-                <div class="p-3 rounded-full bg-purple-100">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                    </svg>
-                </div>
-                <div class="ml-4">
-                    <h3 class="text-sm font-medium text-gray-500">Jurusan Terdaftar</h3>
-                    <p class="text-2xl font-bold text-gray-700">{{ $ruangan->unique('jurusan_id')->count() }}</p>
-                </div>
-            </div>
-        </div>
     </div>
 
     <!-- Main Content Card -->
@@ -138,8 +108,7 @@
                                     </svg>
                                 </div>
                                 <div>
-                                    <div class="text-sm font-semibold text-gray-900">{{ $item->nama_ruangan }}</div>
-                                    <div class="text-xs text-gray-500">Kapasitas: 30 siswa</div>
+                                    <div class="text-sm font-semibold text-gray-900">ruangan {{ $item->nama_ruangan }}</div>
                                 </div>
                             </div>
                         </td>

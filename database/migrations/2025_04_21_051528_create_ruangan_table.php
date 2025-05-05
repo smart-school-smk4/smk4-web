@@ -13,8 +13,7 @@ return new class extends Migration
             $table->string('nama_ruangan');
             $table->foreignId('id_kelas')->constrained('kelas')->onDelete('cascade');
             $table->foreignId('id_jurusan')->constrained('jurusan')->onDelete('cascade');
-            $table->string('relay_state')->default('OFF'); // Ubah tipe data
-            $table->string('mqtt_topic')->nullable(); // Untuk custom topic per ruangan
+            $table->enum('relay_state', ['on', 'off'])->default('off');
             $table->timestamps();
             
             $table->index('nama_ruangan');

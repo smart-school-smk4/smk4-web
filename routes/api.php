@@ -5,6 +5,7 @@ use App\Http\Controllers\BelController;
 use App\Http\Controllers\PresensiController;
 use App\Http\Controllers\SiswaController;
 use App\Http\Controllers\API\BellController;
+use App\Http\Controllers\AnnouncementController;
 
 Route::prefix('bel')->group(function () {
     Route::post('/ring', [BelController::class, 'ring'])->name('api.bel.ring');
@@ -18,8 +19,27 @@ Route::prefix('bel')->group(function () {
 });
 
 // Endpoint untuk menerima data bel dari ESP32
-Route::post('/bell-events', [BellController::class, 'storeScheduleEvent']);
+Route::post('/bell-events/manual', [BellController::class, 'storeManualEvent']);
+Route::post('/bell-events/schedule', [BellController::class, 'storeScheduleEvent']);
 Route::get('/bell-history', [BellController::class, 'getHistory']);
+
+
+Route::prefix('announcements')->group(function () {
+    // CRUD operations
+    Route::post('/store', [AnnouncementController::class, 'store']);
+    Route::get('/{id}', [AnnouncementController::class, 'details']);
+    Route::delete('/{id}', [AnnouncementController::class, 'destroy']);
+    
+    // Status checks
+    Route::get('/mqtt/status', [AnnouncementController::class, 'checkMqtt']);
+    
+    // Relay control
+    Route::post('/relay/control', [AnnouncementController::class, 'controlRelay']);
+    Route::get('/relay/status', [AnnouncementController::class, 'relayStatus']);
+    
+    // Announcement status
+    Route::post('/status', [AnnouncementController::class, 'announcementStatus']);
+});
 
 #Presensi
 Route::post('/presensi', [PresensiController::class, 'store']);

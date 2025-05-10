@@ -7,7 +7,6 @@ use PhpMqtt\Client\ConnectionSettings;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
 use App\Models\BellHistory;
-use App\Events\BellRingEvent;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Validator;
 
@@ -21,6 +20,12 @@ class MqttService
     protected array $subscriptions = [];
     protected const MAX_RECONNECT_ATTEMPTS = 5;
     protected const RECONNECT_DELAY = 5;
+
+    // Constants for announcement topics
+    protected const TOPIC_ANNOUNCEMENT_CONTROL = 'control/relay';
+    protected const TOPIC_ANNOUNCEMENT_TTS = 'tts/play';
+    protected const TOPIC_ANNOUNCEMENT_STATUS = 'announcement/status';
+    protected const TOPIC_ANNOUNCEMENT_RESPONSE = 'announcement/response';
 
     public function __construct()
     {
@@ -40,10 +45,21 @@ class MqttService
 
             $this->connect();
             $this->subscribeToBellTopics();
+            $this->subscribeToAnnouncementTopics(); // Add announcement subscriptions
         } catch (\Exception $e) {
             Log::error('MQTT Initialization failed: ' . $e->getMessage());
             $this->scheduleReconnect();
         }
+    }
+
+    // In MqttService
+    public function getConnectionStatus(): array
+    {
+        return [
+            'connected' => $this->isConnected,
+            'last_attempt' => Cache::get('mqtt_last_attempt'),
+            'queued_messages' => count(Cache::get('mqtt_message_queue', []))
+        ];
     }
 
     protected function getConnectionConfig(): array
@@ -68,6 +84,146 @@ class MqttService
         }
     }
 
+    /**
+     * Subscribe to announcement-related topics
+     */
+    protected function subscribeToAnnouncementTopics(): void
+    {
+        $topics = [
+            self::TOPIC_ANNOUNCEMENT_STATUS => fn($t, $m) => $this->handleAnnouncementStatus($m),
+            self::TOPIC_ANNOUNCEMENT_RESPONSE => fn($t, $m) => $this->handleAnnouncementResponse($m)
+        ];
+
+        foreach ($topics as $topic => $callback) {
+            $this->subscribe($topic, $callback);
+        }
+    }
+
+    /**
+     * Handle announcement status updates from devices
+     */
+    protected function handleAnnouncementStatus(string $message): void
+    {
+        try {
+            $data = json_decode($message, true, 512, JSON_THROW_ON_ERROR);
+            
+            Log::info('Announcement status update', [
+                'status' => $data['status'] ?? 'unknown',
+                'ruang' => $data['ruang'] ?? null,
+                'mode' => $data['mode'] ?? null,
+                'timestamp' => $data['timestamp'] ?? null
+            ]);
+
+            // Store status in cache for quick access
+            if (isset($data['ruang'])) {
+                Cache::put('announcement_status_'.$data['ruang'], $data['status'], 60);
+            }
+
+        } catch (\Exception $e) {
+            Log::error('Failed to process announcement status', [
+                'error' => $e->getMessage(),
+                'message' => $message
+            ]);
+        }
+    }
+
+    /**
+     * Handle announcement responses from devices
+     */
+    protected function handleAnnouncementResponse(string $message): void
+    {
+        try {
+            $data = json_decode($message, true, 512, JSON_THROW_ON_ERROR);
+            
+            Log::debug('Announcement response received', [
+                'type' => $data['type'] ?? 'unknown',
+                'status' => $data['status'] ?? null,
+                'ruang' => $data['ruang'] ?? null,
+                'message' => $data['message'] ?? null
+            ]);
+
+            // TODO: Add any specific response handling logic here
+
+        } catch (\Exception $e) {
+            Log::error('Failed to process announcement response', [
+                'error' => $e->getMessage(),
+                'message' => $message
+            ]);
+        }
+    }
+
+    public function sendRelayControl(string $action, array $ruangans, string $mode = 'manual'): bool
+    {
+        $payload = [
+            'action' => $action, // 'activate' atau 'deactivate'
+            'ruang' => $ruangans,
+            'mode' => $mode,
+            'timestamp' => now()->toDateTimeString()
+        ];
+
+        try {
+            return $this->publish(self::TOPIC_ANNOUNCEMENT_CONTROL, json_encode($payload));
+        } catch (\Exception $e) {
+            Log::error('Failed to send relay control', [
+                'error' => $e->getMessage(),
+                'payload' => $payload
+            ]);
+            return false;
+        }
+    }
+
+    /**
+     * Mengirim pengumuman TTS
+     */
+    public function sendTTSAnnouncement(array $ruangans, string $message, string $language = 'id-id'): bool
+    {
+        $payload = [
+            'ruang' => $ruangans,
+            'teks' => $message,
+            'hl' => $language,
+            'timestamp' => now()->toDateTimeString()
+        ];
+
+        try {
+            return $this->publish(self::TOPIC_ANNOUNCEMENT_TTS, json_encode($payload));
+        } catch (\Exception $e) {
+            Log::error('Failed to send TTS announcement', [
+                'error' => $e->getMessage(),
+                'payload' => $payload
+            ]);
+            return false;
+        }
+    }
+
+    /**
+     * Fungsi kompatibilitas backward (bisa dihapus setelah update controller)
+     * @deprecated
+     */
+    public function sendAnnouncement(string $mode, array $ruangans, ?string $message = null): bool
+    {
+        if ($mode === 'tts' && $message) {
+            return $this->sendTTSAnnouncement($ruangans, $message);
+        }
+        
+        // Default action untuk mode manual
+        return $this->sendRelayControl('activate', $ruangans, $mode);
+    }
+
+
+    /**
+     * Get current announcement status for rooms
+     */
+    public function getAnnouncementStatus(array $ruanganIds): array
+    {
+        $statuses = [];
+        
+        foreach ($ruanganIds as $id) {
+            $statuses[$id] = Cache::get('announcement_status_'.$id, 'unknown');
+        }
+
+        return $statuses;
+    }
+
     protected function handleBellNotification(string $message, string $triggerType): void
     {
         Log::debug("Processing {$triggerType} bell event", compact('message', 'triggerType'));
@@ -77,7 +233,11 @@ class MqttService
             $history = $this->createBellHistory($data, $triggerType);
             
             $this->logBellEvent($history, $triggerType);
-            $this->dispatchBellEvent($history);
+
+            Log::debug('Raw MQTT payload', [
+                'message' => $message,
+                'trigger_type' => $triggerType
+            ]);
         } catch (\JsonException $e) {
             Log::error("Invalid JSON format in bell notification", [
                 'error' => $e->getMessage(),
@@ -144,17 +304,17 @@ class MqttService
         ]);
     }
 
-    protected function dispatchBellEvent(BellHistory $history): void
-    {
-        event(new BellRingEvent([
-            'id' => $history->id,
-            'hari' => $history->hari,
-            'waktu' => $history->waktu,
-            'file_number' => $history->file_number,
-            'trigger_type' => $history->trigger_type,
-            'ring_time' => $history->ring_time->toDateTimeString()
-        ]));
-    }
+    // protected function dispatchBellEvent(BellHistory $history): void
+    // {
+    //     event(new BellRingEvent([
+    //         'id' => $history->id,
+    //         'hari' => $history->hari,
+    //         'waktu' => $history->waktu,
+    //         'file_number' => $history->file_number,
+    //         'trigger_type' => $history->trigger_type,
+    //         'ring_time' => $history->ring_time->toDateTimeString()
+    //     ]));
+    // }
 
     private function normalizeTime(string $time): string
     {
@@ -251,7 +411,7 @@ class MqttService
         }
     }
 
-    public function publish(string $topic, string $message, int $qos = 0, bool $retain = false): bool
+    public function publish(string $topic, string $message, int $qos = 1, bool $retain = false): bool
     {
         if (!$this->isConnected && !$this->connect()) {
             $this->queueMessage($topic, $message, $qos, $retain);

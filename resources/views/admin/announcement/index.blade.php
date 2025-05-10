@@ -56,7 +56,7 @@
         <div class="p-6">
             <!-- Manual Mode Tab -->
             <div id="manualTab" class="tab-content">
-                <form id="manualForm" action="{{ route('admin.announcement.control-relay') }}" method="POST">
+                <form id="manualForm" action="{{ url('/api/announcements/relay/control') }}" method="POST">
                     @csrf
                     <input type="hidden" name="mode" value="manual">
                     <input type="hidden" id="actionType" name="action" value="activate">
@@ -100,10 +100,10 @@
                                             {{ $ruangan->relay_state === 'on' ? 'AKTIF' : 'NONAKTIF' }}
                                         </span>
                                     </div>
-                                    <p class="text-xs text-gray-500 mt-1 flex items-center">
+                                    <!-- <p class="text-xs text-gray-500 mt-1 flex items-center">
                                         <i class="fas fa-map-marker-alt mr-1 text-gray-400"></i>
                                         {{ $ruangan->lokasi }}
-                                    </p>
+                                    </p> -->
                                 </div>
                             </div>
                             @endforeach
@@ -126,7 +126,7 @@
 
             <!-- TTS Mode Tab -->
             <div id="ttsTab" class="tab-content hidden">
-                <form id="ttsForm" action="{{ route('admin.announcement.store') }}" method="POST">
+                <form id="ttsForm" action="{{ url('/api/announcements/store') }}" method="POST">
                     @csrf
                     <input type="hidden" name="mode" value="tts">
                     
@@ -178,10 +178,10 @@
                                         <span class="inline-block w-2.5 h-2.5 rounded-full bg-green-500 mr-2"></span>
                                         {{ $ruangan->nama_ruangan }}
                                     </label>
-                                    <p class="text-xs text-gray-500 mt-1 flex items-center">
+                                    <!-- <p class="text-xs text-gray-500 mt-1 flex items-center">
                                         <i class="fas fa-map-marker-alt mr-1 text-gray-400"></i>
                                         {{ $ruangan->lokasi }}
-                                    </p>
+                                    </p> -->
                                 </div>
                             </div>
                             @endforeach
@@ -482,7 +482,7 @@ $(document).ready(function() {
 
     // Check relay status periodically
     function checkRelayStatus() {
-        $.get("{{ route('admin.announcement.relay-status') }}", function(data) {
+        $.get("{{ url('/api/announcements/relay/status') }}", function(data) {
             data.forEach(room => {
                 const statusElement = $(`#status-ruang-${room.id}`);
                 if (statusElement.length) {
@@ -496,7 +496,7 @@ $(document).ready(function() {
 
     // Check MQTT connection status
     function checkMqttStatus() {
-        $.get("{{ route('admin.check.mqtt') }}", function(data) {
+        $.get("{{ url('/api/announcements/mqtt/status') }}", function(data) {
             const statusElement = $('.mqtt-status-indicator');
             const textElement = $('.mqtt-status-text');
             

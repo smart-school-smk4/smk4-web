@@ -274,7 +274,7 @@ function showRingModal() {
 }
 
 // Ring bell function
-function ringBell(fileNumber, volume = 20) {
+function ringBell(fileNumber, volume = 15) {
     showLoading('Ringing bell...');
     fetch("{{ route('api.bel.ring') }}", {
         method: 'POST',

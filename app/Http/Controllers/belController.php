@@ -64,6 +64,19 @@ class BelController extends Controller
         try {
             $data = json_decode($message, true, 512, JSON_THROW_ON_ERROR);
             
+            // Cek duplikasi dalam 60 detik terakhir
+            $existing = BellHistory::where('file_number', $data['file_number'])
+                ->where('created_at', '>=', now()->subMinute())
+                ->exists();
+            
+            if ($existing) {
+                Log::warning("Duplicate bell event blocked", [
+                    'type' => $triggerType,
+                    'data' => $data
+                ]);
+                return;
+            }
+            
             $requiredFields = ['hari', 'waktu', 'file_number'];
             foreach ($requiredFields as $field) {
                 if (!isset($data[$field])) {
@@ -97,16 +110,17 @@ class BelController extends Controller
 
     private function normalizeWaktu(?string $time): string
     {
-        if (empty($time)) {
-            return '00:00:00';
+        if (empty($time)) return '00:00:00';
+        
+        try {
+            return Carbon::createFromFormat('H:i:s', $time)->format('H:i:s');
+        } catch (\Exception $e) {
+            try {
+                return Carbon::createFromFormat('H:i', $time)->format('H:i:s');
+            } catch (\Exception $e) {
+                return '00:00:00';
+            }
         }
-
-        $parts = explode(':', $time);
-        $hour = min(23, max(0, (int)($parts[0] ?? 0)));
-        $minute = min(59, max(0, (int)($parts[1] ?? 0)));
-        $second = min(59, max(0, (int)($parts[2] ?? 0)));
-
-        return sprintf('%02d:%02d:%02d', $hour, $minute, $second);
     }
 
     protected function handleStatusResponse(string $message): void
@@ -449,44 +463,43 @@ class BelController extends Controller
         }
     }
 
+    protected function getFormattedSchedules()
+    {
+        return JadwalBel::active()
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'hari' => $item->hari,
+                    'waktu' => Carbon::parse($item->waktu)->format('H:i'), // Ensure "H:i" format
+                    'file_number' => $item->file_number,
+                    'volume' => (int)$item->volume ?? 15, // Force integer type
+                    'repeat' => (int)$item->repeat ?? 1,  // Force integer type
+                    'is_active' => (bool)$item->is_active // Force boolean
+                ];
+            })->toArray();
+    }
+    
     public function syncSchedule()
     {
-        try {
-            $schedules = JadwalBel::active()
-                ->get()
-                ->map(fn($item) => [
-                    'hari' => $item->hari,
-                    'waktu' => Carbon::parse($item->waktu)->format('H:i'),
-                    'file_number' => $item->file_number
-                ]);
-
-            $this->mqttService->publish(
-                $this->mqttConfig['topics']['commands']['sync'],
-                json_encode([
-                    'action' => 'sync',
-                    'timestamp' => Carbon::now()->toDateTimeString(),
-                    'schedules' => $schedules
-                ]),
-                1
-            );
-
-            Status::updateOrCreate(['id' => 1], ['last_sync' => Carbon::now()]);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Jadwal berhasil disinkronisasi',
-                'data' => [
-                    'count' => $schedules->count(),
-                    'last_sync' => Carbon::now()->toDateTimeString()
-                ]
-            ]);
-        } catch (\Exception $e) {
-            Log::error('Gagal sync jadwal: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Gagal menyinkronisasi jadwal: ' . $e->getMessage()
-            ], 500);
-        }
+        Log::debug('Sync request received from frontend');
+        $payload = [
+            'action' => 'sync',
+            'timestamp' => now()->toDateTimeString(),
+            'schedules' => $this->getFormattedSchedules()
+        ];
+    
+        $this->mqttService->publish(
+            'bel/sekolah/command/sync',
+            json_encode($payload),
+            1, // QoS 1
+            false // Not retained
+        );
+    
+        return response()->json([
+            'success' => true,
+            'message' => 'Sync command sent',
+            'payload' => $payload // For debugging
+        ]);
     }
 
     protected function syncSchedules(): void
@@ -497,7 +510,10 @@ class BelController extends Controller
                 ->map(fn($item) => [
                     'hari' => $item->hari,
                     'waktu' => Carbon::parse($item->waktu)->format('H:i:s'),
-                    'file_number' => $item->file_number
+                    'file_number' => $item->file_number,
+                    'volume' => $item->volume ?? 15,       // Add this
+                    'repeat' => $item->repeat ?? 1,       // Add this
+                    'is_active' => $item->is_active       // Add this
                 ]);
 
             $this->mqttService->publish(

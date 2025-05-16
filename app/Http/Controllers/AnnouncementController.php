@@ -155,9 +155,18 @@ class AnnouncementController extends Controller
 
     public function destroy($id)
     {
+        DB::beginTransaction();
+        
         try {
             $announcement = Announcement::findOrFail($id);
+            
+            // Hapus relasi terlebih dahulu
+            $announcement->ruangans()->detach();
+            
+            // Kemudian hapus pengumuman
             $announcement->delete();
+            
+            DB::commit();
             
             return response()->json([
                 'success' => true,
@@ -165,10 +174,12 @@ class AnnouncementController extends Controller
             ]);
             
         } catch (\Exception $e) {
+            DB::rollBack();
             Log::error('Failed to delete announcement: ' . $e->getMessage());
+            
             return response()->json([
                 'success' => false,
-                'message' => 'Gagal menghapus pengumuman'
+                'message' => 'Gagal menghapus pengumuman: ' . $e->getMessage()
             ], 500);
         }
     }

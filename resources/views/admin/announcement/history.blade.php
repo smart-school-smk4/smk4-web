@@ -6,18 +6,21 @@
 <div class="container mx-auto px-4 py-8">
     <!-- Header Section -->
     <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
-        <h1 class="text-2xl font-bold text-gray-800">Riwayat Pengumuman</h1>
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800">Riwayat Pengumuman</h1>
+            <p class="text-sm text-gray-600 mt-1">Daftar lengkap pengumuman yang telah dikirim</p>
+        </div>
         <a href="{{ route('admin.announcement.index') }}" 
-           class="flex items-center mt-4 md:mt-0 px-4 py-2 bg-white border border-blue-500 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors">
+           class="flex items-center mt-4 md:mt-0 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors shadow-sm">
             <i class="fas fa-plus-circle mr-2"></i> Buat Pengumuman Baru
         </a>
     </div>
 
     <!-- Enhanced Filter Card -->
     <div class="bg-white rounded-lg shadow-sm border border-gray-200 mb-6 overflow-hidden">
-        <div class="p-4 border-b border-gray-200 bg-gray-50">
+        <div class="p-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-gray-50">
             <h2 class="text-lg font-medium text-gray-700 flex items-center">
-                <i class="fas fa-filter mr-2 text-blue-500"></i> Filter Riwayat
+                <i class="fas fa-filter mr-2 text-blue-600"></i> Filter Riwayat
             </h2>
         </div>
         <div class="p-4">
@@ -25,7 +28,7 @@
                 <div>
                     <label for="mode" class="block text-sm font-medium text-gray-700 mb-1">Mode Pengumuman</label>
                     <div class="relative">
-                        <select id="mode" name="mode" class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md border">
+                        <select id="mode" name="mode" class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md border bg-white">
                             <option value="">Semua Mode</option>
                             <option value="tts" {{ request('mode') == 'tts' ? 'selected' : '' }}>Text-to-Speech</option>
                             <option value="manual" {{ request('mode') == 'manual' ? 'selected' : '' }}>Manual</option>
@@ -39,7 +42,7 @@
                     <label for="start_date" class="block text-sm font-medium text-gray-700 mb-1">Dari Tanggal</label>
                     <div class="relative">
                         <input type="date" id="start_date" name="start_date" value="{{ request('start_date') }}" 
-                               class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md border">
+                               class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md border bg-white">
                         <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
                             <i class="fas fa-calendar-alt text-gray-400"></i>
                         </div>
@@ -49,7 +52,7 @@
                     <label for="end_date" class="block text-sm font-medium text-gray-700 mb-1">Sampai Tanggal</label>
                     <div class="relative">
                         <input type="date" id="end_date" name="end_date" value="{{ request('end_date') }}" 
-                               class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md border">
+                               class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md border bg-white">
                         <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
                             <i class="fas fa-calendar-alt text-gray-400"></i>
                         </div>
@@ -73,11 +76,8 @@
     <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
+                <thead class="bg-gradient-to-r from-blue-50 to-gray-50">
                     <tr>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            #
-                        </th>
                         <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Waktu Pengiriman
                         </th>
@@ -96,27 +96,31 @@
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
-                    @forelse($announcements as $index => $announcement)
-                    <tr class="hover:bg-gray-50 transition-colors">
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {{ $index + 1 + (($announcements->currentPage() - 1) * $announcements->perPage()) }}
-                        </td>
+                    @forelse($announcements as $announcement)
+                    <tr class="hover:bg-gray-50 transition-colors" data-id="{{ $announcement->id }}">
                         <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="text-sm font-semibold text-gray-900">
-                                {{ $announcement->formatted_sent_at }}
-                            </div>
-                            <div class="text-xs text-gray-500">
-                                {{ $announcement->sent_at->diffForHumans() }}
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0 h-10 w-10 flex items-center justify-center rounded-full bg-blue-50 text-blue-600 mr-3">
+                                    <i class="fas fa-bullhorn"></i>
+                                </div>
+                                <div>
+                                    <div class="text-sm font-semibold text-gray-900">
+                                        {{ $announcement->formatted_sent_at }}
+                                    </div>
+                                    <div class="text-xs text-gray-500">
+                                        {{ $announcement->sent_at->diffForHumans() }}
+                                    </div>
+                                </div>
                             </div>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
                             @if($announcement->mode === 'tts')
-                            <span class="px-2.5 py-0.5 inline-flex text-xs leading-4 font-medium rounded-full bg-green-100 text-green-800">
-                                <i class="fas fa-robot mr-1"></i> TTS
+                            <span class="px-2.5 py-0.5 inline-flex items-center text-xs leading-4 font-medium rounded-full bg-green-100 text-green-800">
+                                <i class="fas fa-robot mr-1.5"></i> TTS
                             </span>
                             @else
-                            <span class="px-2.5 py-0.5 inline-flex text-xs leading-4 font-medium rounded-full bg-blue-100 text-blue-800">
-                                <i class="fas fa-microphone-alt mr-1"></i> Manual
+                            <span class="px-2.5 py-0.5 inline-flex items-center text-xs leading-4 font-medium rounded-full bg-blue-100 text-blue-800">
+                                <i class="fas fa-microphone-alt mr-1.5"></i> Manual
                             </span>
                             @endif
                         </td>
@@ -128,7 +132,7 @@
                             <div class="flex flex-wrap gap-1">
                                 @foreach($announcement->ruangans as $ruangan)
                                 <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
-                                    <span class="w-1.5 h-1.5 rounded-full mr-1 {{ $announcement->mode === 'tts' ? 'bg-green-500' : 'bg-blue-500' }}"></span>
+                                    <span class="w-2 h-2 rounded-full mr-1.5 {{ $announcement->mode === 'tts' ? 'bg-green-500' : 'bg-blue-500' }}"></span>
                                     {{ $ruangan->nama_ruangan }}
                                 </span>
                                 @endforeach
@@ -154,7 +158,7 @@
                     <tr>
                         <td colspan="6" class="px-6 py-8 text-center">
                             <div class="flex flex-col items-center justify-center">
-                                <i class="fas fa-inbox text-3xl text-gray-300 mb-3"></i>
+                                <i class="fas fa-inbox text-4xl text-gray-300 mb-3"></i>
                                 <p class="text-gray-500 text-sm">Tidak ada riwayat pengumuman</p>
                                 @if(request()->has('mode') || request()->has('start_date') || request()->has('end_date'))
                                 <a href="{{ route('admin.announcement.history') }}" class="text-blue-600 hover:text-blue-800 mt-2 text-sm flex items-center">
@@ -203,6 +207,7 @@ function showAnnouncementDetails(id) {
                     <div class="flex items-center">
                         <span class="font-medium w-24">Mode:</span>
                         <span class="px-2.5 py-0.5 inline-flex text-xs leading-4 font-medium rounded-full ${data.mode === 'tts' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}">
+                            <i class="fas ${data.mode === 'tts' ? 'fa-robot' : 'fa-microphone-alt'} mr-1"></i>
                             ${data.mode === 'tts' ? 'Text-to-Speech' : 'Manual'}
                         </span>
                     </div>
@@ -215,7 +220,7 @@ function showAnnouncementDetails(id) {
                         <div class="flex flex-wrap gap-1 mt-1">
                             ${data.ruangans.map(r => `
                                 <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
-                                    <span class="w-1.5 h-1.5 rounded-full mr-1 ${data.mode === 'tts' ? 'bg-green-500' : 'bg-blue-500'}"></span>
+                                    <span class="w-2 h-2 rounded-full mr-1.5 ${data.mode === 'tts' ? 'bg-green-500' : 'bg-blue-500'}"></span>
                                     ${r.nama_ruangan}
                                 </span>
                             `).join('')}
@@ -223,7 +228,7 @@ function showAnnouncementDetails(id) {
                     </div>
                     <div class="mt-4 p-3 bg-gray-50 rounded border border-gray-200">
                         <p class="font-medium text-sm">Isi Pengumuman:</p>
-                        <p class="mt-1 text-sm">${data.message}</p>
+                        <p class="mt-1 text-sm whitespace-pre-line">${data.message}</p>
                     </div>
                 </div>
             `,

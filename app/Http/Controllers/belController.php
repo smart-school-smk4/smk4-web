@@ -238,7 +238,7 @@ class BelController extends Controller
         
         try {
             $schedule = JadwalBel::create($validated);
-            $this->syncSchedules();
+            $this->syncSchedule();
             $this->logActivity('Jadwal dibuat', $schedule);
             
             return redirect()
@@ -268,7 +268,7 @@ class BelController extends Controller
         
         try {
             $schedule->update($validated);
-            $this->syncSchedules();
+            $this->syncSchedule();
             $this->logActivity('Jadwal diperbarui', $schedule);
             
             return redirect()
@@ -288,7 +288,7 @@ class BelController extends Controller
         try {
             $schedule = JadwalBel::findOrFail($id);
             $schedule->delete();
-            $this->syncSchedules();
+            $this->syncSchedule();
             $this->logActivity('Jadwal dihapus', $schedule);
             
             return redirect()
@@ -304,7 +304,7 @@ class BelController extends Controller
     {
         try {
             JadwalBel::truncate();
-            $this->syncSchedules();
+            $this->syncSchedule();
             
             return redirect()
                 ->route('bel.index')
@@ -339,7 +339,7 @@ class BelController extends Controller
     {
         try {
             JadwalBel::query()->update(['is_active' => true]);
-            $this->syncSchedules();
+            $this->syncSchedule();
             
             return response()->json([
                 'success' => true,
@@ -358,7 +358,7 @@ class BelController extends Controller
     {
         try {
             JadwalBel::query()->update(['is_active' => false]);
-            $this->syncSchedules();
+            $this->syncSchedule();
             
             return response()->json([
                 'success' => true,
@@ -502,35 +502,7 @@ class BelController extends Controller
         ]);
     }
 
-    protected function syncSchedules(): void
-    {
-        try {
-            $schedules = JadwalBel::active()
-                ->get()
-                ->map(fn($item) => [
-                    'hari' => $item->hari,
-                    'waktu' => Carbon::parse($item->waktu)->format('H:i:s'),
-                    'file_number' => $item->file_number,
-                    'volume' => $item->volume ?? 15,       // Add this
-                    'repeat' => $item->repeat ?? 1,       // Add this
-                    'is_active' => $item->is_active       // Add this
-                ]);
 
-            $this->mqttService->publish(
-                $this->mqttConfig['topics']['commands']['sync'],
-                json_encode([
-                    'action' => 'sync',
-                    'timestamp' => Carbon::now()->toDateTimeString(),
-                    'schedules' => $schedules
-                ]),
-                1
-            );
-
-            Log::info("Auto sync: " . count($schedules) . " jadwal");
-        } catch (\Exception $e) {
-            Log::error('Gagal auto sync: ' . $e->getMessage());
-        }
-    }
 
     public function getNextSchedule()
     {

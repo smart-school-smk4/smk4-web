@@ -111,6 +111,8 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/', 'index')->name('admin.announcement.index');
             Route::get('/history', 'history')->name('admin.announcement.history');
             Route::delete('/{id}', 'destroy')->name('announcement.destroy');
+            Route::get('{id}/details', 'details')->name('announcement.details');
+
         });
 
     });

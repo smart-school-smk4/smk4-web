@@ -14,10 +14,10 @@ class StoreAnnouncementRequest extends FormRequest
     public function rules()
     {
         return [
-            'message' => 'required|string|max:500',
+            'message' => 'required_if:mode,tts|string|max:500',
             'mode' => 'required|in:tts,manual',
             'ruangans' => 'required|array|min:1',
-            'ruangans.*' => 'exists:ruangan,id',
+            'ruangans.*' => 'string|exists:ruangan,nama_ruangan', // Ubah validasi ke nama ruangan
         ];
     }
 

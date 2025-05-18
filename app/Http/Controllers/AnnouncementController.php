@@ -46,9 +46,9 @@ class AnnouncementController extends Controller
                 ->when(request('date'), function($query, $date) {
                     return $query->whereDate('sent_at', $date);
                 })
-                ->when(request('ruangan'), function($query, $ruanganId) {
-                    return $query->whereHas('ruangans', function($q) use ($ruanganId) {
-                        $q->where('ruangan.id', $ruanganId);
+                ->when(request('ruangan'), function($query, $ruanganName) {
+                    return $query->whereHas('ruangans', function($q) use ($ruanganName) {
+                        $q->where('nama_ruangan', $ruanganName); // Filter by name
                     });
                 })
                 ->orderBy('sent_at', 'desc')
@@ -74,6 +74,25 @@ class AnnouncementController extends Controller
         DB::beginTransaction();
         
         try {
+            // 1. Konversi nama ruangan ke ID
+            $ruanganNames = $request->ruangans;
+            $ruanganRecords = Ruangan::whereIn('nama_ruangan', $ruanganNames)->get();
+            
+            // Validasi semua nama ruangan ditemukan
+            if ($ruanganRecords->count() !== count($ruanganNames)) {
+                $missingRooms = array_diff(
+                    $ruanganNames,
+                    $ruanganRecords->pluck('nama_ruangan')->toArray()
+                );
+                
+                throw new \Exception(
+                    'Ruangan tidak ditemukan: ' . implode(', ', $missingRooms)
+                );
+            }
+
+            $ruanganIds = $ruanganRecords->pluck('id')->toArray();
+
+            // 2. Persiapkan data pengumuman
             $announcementData = [
                 'mode' => $request->mode,
                 'sent_at' => now(),
@@ -83,46 +102,56 @@ class AnnouncementController extends Controller
                 $announcementData['message'] = $request->message;
             }
         
+            // 3. Simpan pengumuman dan relasinya
             $announcement = Announcement::create($announcementData);
-            $announcement->ruangans()->sync($request->ruangans);
+            $announcement->ruangans()->sync($ruanganIds);
         
+            // 4. Kirim perintah ke MQTT
             $mqttService = app(MqttService::class);
+            $success = false;
             
             if ($request->mode === self::MODE_TTS) {
                 $success = $mqttService->sendTTSAnnouncement(
-                    $request->ruangans,
+                    $ruanganNames, // Kirim nama ruangan (bukan ID)
                     $request->message
                 );
             } else {
                 $success = $mqttService->sendRelayControl(
-                    'activate', // Default action for announcements
-                    $request->ruangans,
+                    self::ACTION_ACTIVATE,
+                    $ruanganNames, // Kirim nama ruangan (bukan ID)
                     $request->mode
                 );
             }
             
             if (!$success) {
-                throw new \Exception('Gagal mengirim perintah ke perangkat');
+                throw new \Exception('Gagal mengirim perintah ke perangkat MQTT');
             }
             
             DB::commit();
             
             return response()->json([
                 'success' => true,
-                'message' => 'Pengumuman berhasil dikirim'
+                'message' => 'Pengumuman berhasil dikirim',
+                'data' => [
+                    'announcement_id' => $announcement->id,
+                    'ruangan' => $ruanganNames
+                ]
             ]);
             
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Failed to store announcement: ' . $e->getMessage());
+            Log::error('Failed to store announcement', [
+                'error' => $e->getMessage(),
+                'request' => $request->all()
+            ]);
             
             return response()->json([
                 'success' => false,
-                'message' => 'Gagal mengirim pengumuman: ' . $e->getMessage()
+                'message' => 'Gagal mengirim pengumuman: ' . $e->getMessage(),
+                'error_details' => $e->getMessage()
             ], 500);
         }
     }
-
 
     public function details($id)
     {
@@ -196,7 +225,7 @@ class AnnouncementController extends Controller
     {
         $validated = $request->validate([
             'ruangans' => 'required|array|min:1',
-            'ruangans.*' => 'exists:ruangan,id',
+            'ruangans.*' => 'string|exists:ruangan,nama_ruangan', // Pastikan validasi string
             'action' => 'required|in:'.self::ACTION_ACTIVATE.','.self::ACTION_DEACTIVATE,
             'mode' => 'required|in:'.self::MODE_MANUAL.','.self::MODE_TTS
         ]);
@@ -204,13 +233,15 @@ class AnnouncementController extends Controller
         DB::beginTransaction();
         
         try {
-            $state = $validated['action'] === self::ACTION_ACTIVATE ? 'on' : 'off';
-            $ruanganIds = $validated['ruangans'];
+            // Dapatkan ID untuk operasi database
+            $ruanganIds = Ruangan::whereIn('nama_ruangan', $validated['ruangans'])
+                ->pluck('id')
+                ->toArray();
 
             $mqttService = app(MqttService::class);
             $success = $mqttService->sendRelayControl(
                 $validated['action'],
-                $ruanganIds,
+                $validated['ruangans'], // Kirim NAMA ruangan ke MQTT
                 $validated['mode']
             );
 
@@ -218,10 +249,11 @@ class AnnouncementController extends Controller
                 throw new \Exception('Gagal mengirim perintah ke perangkat');
             }
 
-            // Update database
+            // Update database menggunakan ID
+            $state = $validated['action'] === self::ACTION_ACTIVATE ? 'on' : 'off';
             Ruangan::whereIn('id', $ruanganIds)->update(['relay_state' => $state]);
 
-            // Log manual activations as announcements
+            // Log manual activations
             if ($validated['action'] === self::ACTION_ACTIVATE && $validated['mode'] === self::MODE_MANUAL) {
                 $announcement = Announcement::create([
                     'mode' => self::MODE_MANUAL,
@@ -229,14 +261,15 @@ class AnnouncementController extends Controller
                     'sent_at' => now()
                 ]);
                 
-                $announcement->ruangans()->sync($ruanganIds);
+                $announcement->ruangans()->sync($ruanganIds); // Gunakan ID untuk relasi
             }
 
             DB::commit();
             
             return response()->json([
                 'success' => true,
-                'message' => 'Relay berhasil dikontrol'
+                'message' => 'Relay berhasil dikontrol',
+                'ruangans' => $validated['ruangans'] // Kembalikan nama ruangan
             ]);
 
         } catch (\Exception $e) {
@@ -253,11 +286,16 @@ class AnnouncementController extends Controller
     public function relayStatus()
     {
         try {
-            $ruangans = Ruangan::select('id', 'nama_ruangan', 'relay_state')->get();
+            $ruangans = Ruangan::select('nama_ruangan', 'relay_state')->get(); // Hanya ambil nama dan status
             
             return response()->json([
                 'success' => true,
-                'data' => $ruangans
+                'data' => $ruangans->map(function($ruangan) {
+                    return [
+                        'nama_ruangan' => $ruangan->nama_ruangan,
+                        'relay_state' => $ruangan->relay_state
+                    ];
+                })
             ]);
             
         } catch (\Exception $e) {
@@ -274,7 +312,7 @@ class AnnouncementController extends Controller
         try {
             $request->validate([
                 'ruangans' => 'required|array|min:1',
-                'ruangans.*' => 'exists:ruangan,id'
+                'ruangans.*' => 'exists:ruangan,nama_ruangan'
             ]);
 
             $mqttService = app(MqttService::class);

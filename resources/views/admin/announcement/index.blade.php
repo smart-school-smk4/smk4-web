@@ -85,25 +85,24 @@
                             @foreach($ruangans as $ruangan)
                             <div class="relative flex items-start p-3 rounded-lg border border-gray-200 hover:border-blue-300 transition-colors">
                                 <div class="flex items-center h-5 mt-1">
-                                    <input id="manual-ruang-{{ $ruangan->id }}" name="ruangans[]" 
-                                           type="checkbox" value="{{ $ruangan->id }}" 
+                                    <input id="manual-ruang-{{ $ruangan->nama_ruangan }}" 
+                                           name="ruangans[]" 
+                                           type="checkbox" 
+                                           value="{{ $ruangan->nama_ruangan }}" 
                                            class="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded">
                                 </div>
                                 <div class="ml-3 text-sm flex-1">
                                     <div class="flex items-center justify-between">
-                                        <label for="manual-ruang-{{ $ruangan->id }}" class="font-medium text-gray-700 flex items-center">
+                                        <label for="manual-ruang-{{ $ruangan->nama_ruangan }}" class="font-medium text-gray-700 flex items-center">
                                             <span class="inline-block w-2.5 h-2.5 rounded-full bg-blue-500 mr-2"></span>
                                             {{ $ruangan->nama_ruangan }}
                                         </label>
-                                        <span id="status-ruang-{{ $ruangan->id }}" class="text-xs px-2 py-0.5 rounded-full 
-                                            {{ $ruangan->relay_state === 'on' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800' }}">
+                                        <span id="status-ruang-{{ $ruangan->nama_ruangan }}" 
+                                              class="text-xs px-2 py-0.5 rounded-full 
+                                              {{ $ruangan->relay_state === 'on' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800' }}">
                                             {{ $ruangan->relay_state === 'on' ? 'AKTIF' : 'NONAKTIF' }}
                                         </span>
                                     </div>
-                                    <!-- <p class="text-xs text-gray-500 mt-1 flex items-center">
-                                        <i class="fas fa-map-marker-alt mr-1 text-gray-400"></i>
-                                        {{ $ruangan->lokasi }}
-                                    </p> -->
                                 </div>
                             </div>
                             @endforeach
@@ -169,19 +168,17 @@
                             @foreach($ruangans as $ruangan)
                             <div class="relative flex items-start p-3 rounded-lg border border-gray-200 hover:border-green-300 transition-colors">
                                 <div class="flex items-center h-5 mt-1">
-                                    <input id="tts-ruang-{{ $ruangan->id }}" name="ruangans[]" 
-                                        type="checkbox" value="{{ $ruangan->id }}" 
-                                        class="focus:ring-green-500 h-4 w-4 text-green-600 border-gray-300 rounded">
+                                    <input id="tts-ruang-{{ $ruangan->nama_ruangan }}" 
+                                           name="ruangans[]" 
+                                           type="checkbox" 
+                                           value="{{ $ruangan->nama_ruangan }}" 
+                                           class="focus:ring-green-500 h-4 w-4 text-green-600 border-gray-300 rounded">
                                 </div>
                                 <div class="ml-3 text-sm">
-                                    <label for="tts-ruang-{{ $ruangan->id }}" class="font-medium text-gray-700 flex items-center">
+                                    <label for="tts-ruang-{{ $ruangan->nama_ruangan }}" class="font-medium text-gray-700 flex items-center">
                                         <span class="inline-block w-2.5 h-2.5 rounded-full bg-green-500 mr-2"></span>
                                         {{ $ruangan->nama_ruangan }}
                                     </label>
-                                    <!-- <p class="text-xs text-gray-500 mt-1 flex items-center">
-                                        <i class="fas fa-map-marker-alt mr-1 text-gray-400"></i>
-                                        {{ $ruangan->lokasi }}
-                                    </p> -->
                                 </div>
                             </div>
                             @endforeach
@@ -210,6 +207,11 @@
 
 <script>
 $(document).ready(function() {
+    // Fungsi untuk membuat selector aman dari karakter khusus
+    function getSafeRoomSelector(roomName) {
+        return roomName.replace(/[^a-zA-Z0-9-]/g, '-');
+    }
+
     // Tab switching functionality
     function switchTab(activeTab, inactiveTab, activeBtn, inactiveBtn) {
         activeTab.classList.remove('hidden');
@@ -282,12 +284,12 @@ $(document).ready(function() {
         e.preventDefault();
         const form = this;
         const formData = new FormData(form);
-        const rooms = formData.getAll('ruangans[]');
+        const roomNames = formData.getAll('ruangans[]');
         
         // Reset error states
         $('#ruanganError').addClass('hidden');
         
-        if (rooms.length === 0) {
+        if (roomNames.length === 0) {
             $('#ruanganError').removeClass('hidden');
             Swal.fire({
                 title: 'Peringatan',
@@ -324,8 +326,9 @@ $(document).ready(function() {
             },
             success: function(response) {
                 // Update room status indicators
-                rooms.forEach(roomId => {
-                    const statusElement = $(`#status-ruang-${roomId}`);
+                roomNames.forEach(roomName => {
+                    const safeRoomName = getSafeRoomSelector(roomName);
+                    const statusElement = $(`#status-ruang-${safeRoomName}`);
                     statusElement.text(isRelayActive ? 'AKTIF' : 'NONAKTIF');
                     statusElement.removeClass('bg-gray-100 text-gray-800 bg-green-100 text-green-800')
                                .addClass(isRelayActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800');
@@ -409,8 +412,8 @@ $(document).ready(function() {
             return;
         }
 
-        const rooms = formData.getAll('ruangans[]');
-        if (rooms.length === 0) {
+        const roomNames = formData.getAll('ruangans[]');
+        if (roomNames.length === 0) {
             $('#ttsRuanganError').removeClass('hidden');
             Swal.fire({
                 title: 'Peringatan',
@@ -484,7 +487,8 @@ $(document).ready(function() {
     function checkRelayStatus() {
         $.get("{{ url('/api/announcements/relay/status') }}", function(data) {
             data.forEach(room => {
-                const statusElement = $(`#status-ruang-${room.id}`);
+                const safeRoomName = getSafeRoomSelector(room.nama_ruangan);
+                const statusElement = $(`#status-ruang-${safeRoomName}`);
                 if (statusElement.length) {
                     statusElement.text(room.relay_state === 'on' ? 'AKTIF' : 'NONAKTIF');
                     statusElement.removeClass('bg-gray-100 text-gray-800 bg-green-100 text-green-800')

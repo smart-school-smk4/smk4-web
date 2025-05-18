@@ -199,7 +199,8 @@
 <script>
 // Show announcement details in modal
 function showAnnouncementDetails(id) {
-    $.get(`/admin/announcement/${id}/details`, function(data) {
+    $.get(`/admin/announcement/${id}/details`, function(response) {
+    const data = response.data; // ambil data sebenarnya dari response
         Swal.fire({
             title: 'Detail Pengumuman',
             html: `
@@ -210,10 +211,6 @@ function showAnnouncementDetails(id) {
                             <i class="fas ${data.mode === 'tts' ? 'fa-robot' : 'fa-microphone-alt'} mr-1"></i>
                             ${data.mode === 'tts' ? 'Text-to-Speech' : 'Manual'}
                         </span>
-                    </div>
-                    <div>
-                        <span class="font-medium w-24">Waktu:</span>
-                        <span>${data.formatted_sent_at}</span>
                     </div>
                     <div>
                         <span class="font-medium w-24">Ruangan:</span>

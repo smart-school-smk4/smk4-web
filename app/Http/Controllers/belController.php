@@ -619,14 +619,14 @@ class BelController extends Controller
     }
 
     protected function validateSchedule(Request $request): array
-    {
-        return $request->validate([
-            'hari' => 'required|in:' . implode(',', JadwalBel::DAYS),
-            'waktu' => 'required|date_format:H:i',
-            'file_number' => 'required|string|size:4',
-            'is_active' => 'sometimes|boolean'
-        ]);
-    }
+{
+    return $request->validate([
+        'hari' => 'required|in:' . implode(',', JadwalBel::DAYS),
+        'waktu' => 'required|date_format:H:i',
+        'file_number' => 'required|string|size:4',
+        'is_active' => 'sometimes|boolean'
+    ]);
+}
 
     protected function logActivity(string $action, JadwalBel $schedule): void
     {

@@ -14,7 +14,7 @@ services:
 
   mysql:
     image: mysql:8
-    container_name: laravel_db
+    container_name: laravel_database
     restart: always
     environment:
       MYSQL_DATABASE: db_presensi

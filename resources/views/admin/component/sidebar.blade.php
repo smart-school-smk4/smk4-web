@@ -40,7 +40,7 @@
                     <li><a href="{{ route('admin.siswa.index') }}"
                             class="block p-2 rounded-lg {{ request()->is('admin/siswa') ? 'bg-blue-100 text-blue-600' : 'bg-gray-50 text-gray-800' }}">Siswa</a>
                     </li>
-                    <li><a href="{{ route('admin.guru') }}"
+                    <li><a href="{{ route('admin.guru.index') }}"
                             class="block p-2 rounded-lg {{ request()->is('admin/guru') ? 'bg-blue-100 text-blue-600' : 'bg-gray-50 text-gray-800' }}">Guru</a>
                     </li>
                     <li><a href="{{ route('admin.kelas.index') }}"

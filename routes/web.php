@@ -49,7 +49,14 @@ Route::middleware(['auth'])->group(function () {
         
 
         // Guru
-        Route::get('/guru', [GuruController::class, 'index'])->name('admin.guru');
+        Route::controller(GuruController::class)->group(function () {
+            Route::get('/guru', 'index')->name('admin.guru.index'); // halaman utama guru
+            Route::get('/guru/create', 'create')->name('admin.guru.create'); // form tambah guru
+            Route::post('/guru', 'store')->name('admin.guru.store'); // simpan guru baru
+            Route::get('/guru/{id}/edit', 'edit')->name('admin.guru.edit'); // form edit guru
+            Route::put('/guru/{id}', 'update')->name('admin.guru.update'); // simpan update guru
+            Route::delete('/guru/{id}', 'destroy')->name('admin.guru.destroy'); // hapus guru
+        });
 
         // Kelas
         Route::resource('kelas', KelasController::class)->parameters([

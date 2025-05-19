@@ -18,7 +18,8 @@ class DatabaseSeeder extends Seeder
             JurusanSeeder::class,
             KelasSeeder::class,
             SiswaTableSeeder::class,
-            StatusSeeder::class
+            StatusSeeder::class,
+            GuruSeeder::class
         ]);
     }
 }

@@ -1,6 +1,6 @@
 @extends('layouts.dashboard')
 
-@section('title', 'Pengumuman Sekolah - Smart School')
+@section('title', 'Pengumuman Sekolah')
 
 @section('content')
 <div class="container mx-auto px-4 py-8">
@@ -67,8 +67,8 @@
                                 <i class="fas fa-sliders-h"></i>
                             </div>
                             <div>
-                                <h3 class="text-xl font-semibold text-gray-800">Kontrol Relay Manual</h3>
-                                <p class="text-gray-600 text-sm">Aktifkan atau nonaktifkan relay untuk ruangan tertentu</p>
+                                <h3 class="text-xl font-semibold text-gray-800">Pengumuman Manual</h3>
+                                <p class="text-gray-600 text-sm">Aktifkan atau nonaktifkan Speaker untuk ruangan tertentu</p>
                             </div>
                         </div>
                     </div>

@@ -1,6 +1,6 @@
 @extends('layouts.dashboard')
 
-@section('title', 'School Bell Management System')
+@section('title', 'Manajemen Jadwal Bel Sekolah')
 
 @section('content')
 <div class="container mx-auto px-4 py-8">
@@ -102,7 +102,7 @@
             'statusId' => 'dfplayerStatusText',
             'status' => 'Connected',
             'detailsId' => 'dfplayerDetails',
-            'details' => '50 Audio File Tersedia'
+            'details' => ''
         ])
 
         <!-- Next Bell Countdown -->

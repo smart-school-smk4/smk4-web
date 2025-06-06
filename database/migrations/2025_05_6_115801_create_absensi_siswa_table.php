@@ -14,11 +14,11 @@ return new class extends Migration
         Schema::create('absensi_siswa', function (Blueprint $table) {
             $table->id();
             $table->foreignId('id_siswa')->constrained('siswa')->onDelete('cascade');
-            $table->timestamp('waktu_absen');
+            $table->foreignId('id_devices')->nullable()->constrained('devices')->onDelete('set null');
+            $table->timestamp('waktu');
             $table->string('status');
             $table->timestamps();
 
-            $table->foreignId('device_id')->nullable()->constrained('devices')->onDelete('set null');
         });
     }
 

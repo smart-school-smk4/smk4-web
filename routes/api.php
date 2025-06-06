@@ -6,6 +6,10 @@ use App\Http\Controllers\PresensiController;
 use App\Http\Controllers\SiswaController;
 use App\Http\Controllers\API\BellController;
 use App\Http\Controllers\AnnouncementController;
+use App\Http\Controllers\Api\DevicesApiController;
+use App\Http\Controllers\Api\SiswaApiController;
+use App\Http\Controllers\Api\AbsensiSiswaApiController;
+
 
 Route::prefix('bel')->group(function () {
     Route::post('/ring', [BelController::class, 'ring'])->name('api.bel.ring');
@@ -42,8 +46,8 @@ Route::prefix('announcements')->group(function () {
 });
 
 #Presensi
-Route::post('/presensi', [PresensiController::class, 'store']);
 
-Route::prefix('admin')->group(function () {
-    Route::apiResource('/siswa', SiswaController::class)->only(['index', 'store']);
-});
+Route::get('/siswa', [SiswaApiController::class, 'index']);
+Route::get('/devices', [DevicesApiController::class, 'index']);
+
+Route::post('/absensi-siswa', [AbsensiSiswaApiController::class, 'store']);

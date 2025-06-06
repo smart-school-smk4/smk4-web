@@ -5,14 +5,14 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class AbsensiSiswa extends Model
+class AbsensiGuru extends Model
 {
     use HasFactory;
 
-    protected $table = 'absensi_siswa';
+    protected $table = 'absensi_guru';
 
     protected $fillable = [
-        'id_siswa',
+        'id_guru',
         'id_devices',
         'waktu',
         'status',
@@ -27,6 +27,6 @@ class AbsensiSiswa extends Model
     // Relasi ke tabel siswa
     public function siswa()
     {
-        return $this->belongsTo(Siswa::class, 'id_siswa');
+        return $this->belongsTo(Siswa::class, 'id_guru');
     }
 }

@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('absensi_guru', function (Blueprint $table) {
             $table->id();
             $table->foreignId('id_guru')->constrained('guru')->onDelete('cascade');
-            $table->date('tanggal');
+            $table->date('waktu');
             $table->string('status');
             $table->timestamps();
         });

@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\AbsensiGuruController;
+use App\Http\Controllers\AbsensiSiswaController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\BelController;
 use App\Http\Controllers\GuruController;
@@ -14,6 +16,8 @@ use App\Http\Controllers\SiswaController;
 use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\RuanganController;
 use App\Http\Controllers\BellHistoryController;
+use App\Models\AbsensiGuru;
+use App\Models\AbsensiSiswa;
 
 // Public routes
 Route::get('/', [IndexController::class, 'index'])->name('index');
@@ -87,10 +91,14 @@ Route::middleware(['auth'])->group(function () {
             'update' => 'admin.ruangan.update',
             'destroy' => 'admin.ruangan.destroy',
         ]);
-        // Presensi
-        Route::controller(PresensiController::class)->group(function () {
-            Route::get('/presensi/siswa', 'indexSiswa')->name('admin.presensi.siswa');
-            Route::get('/presensi/guru', 'indexGuru')->name('admin.presensi.guru');
+        // Presensi Siswa
+        Route::controller(AbsensiSiswaController::class)->group(function () {
+            Route::get('/presensi/siswa', 'index')->name('admin.presensi.siswa');
+        });
+
+        // Presensi Guru
+        Route::controller(AbsensiGuruController::class)->group(function () {
+            Route::get('/presensi/guru', 'index')->name('admin.presensi.guru');
         });
 
         // Laporan

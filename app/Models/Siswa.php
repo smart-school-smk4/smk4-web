@@ -15,7 +15,6 @@ class Siswa extends Model
         'nama_siswa',
         'nisn',
         'tanggal_lahir',
-        'foto_siswa',
         'jenis_kelamin',
         'alamat',
         'no_hp',

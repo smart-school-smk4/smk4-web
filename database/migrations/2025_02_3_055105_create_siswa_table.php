@@ -16,7 +16,6 @@ return new class extends Migration
             $table->string('nama_siswa');
             $table->integer('nisn')->unique();
             $table->date('tanggal_lahir');
-            $table->string('foto_siswa');
             $table->enum('jenis_kelamin', ['L', 'P']);
             $table->text('alamat');
             $table->string('no_hp');

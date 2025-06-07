@@ -3,10 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Models\FotoSiswa;
 use App\Models\Siswa;
 use App\Models\Kelas;
 use App\Models\Jurusan;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 
@@ -40,12 +42,15 @@ class SiswaController extends Controller
      */
     public function store(Request $request)
     {
-        // Validasi data
+        // Validasi data: 'foto_siswa' sekarang adalah array
         $validator = Validator::make($request->all(), [
-            'foto_siswa' => 'required|image|mimes:jpeg,png,jpg|max:2048',
             'nama_siswa' => 'required|string|max:255',
             'nisn' => 'required|numeric|unique:siswa,nisn',
             'tanggal_lahir' => 'required|date',
+            // Validasi untuk array file
+            'foto_siswa' => 'required|array|min:1', // Wajib ada minimal 1 foto
+            'foto_siswa.*' => 'required|image|mimes:jpeg,png,jpg|max:2048', // Validasi setiap file dalam array
+            // ... (validasi lainnya sama)
             'jenis_kelamin' => 'required|in:L,P',
             'email' => 'required|email|unique:siswa,email',
             'no_hp' => 'required|string|max:15',
@@ -55,34 +60,47 @@ class SiswaController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return redirect()->back()
-                ->withErrors($validator)
-                ->withInput();
+            return redirect()->back()->withErrors($validator)->withInput();
         }
 
-        // Upload foto siswa
-        if ($request->hasFile('foto_siswa')) {
-            $foto = $request->file('foto_siswa');
-            $fotoName = time() . '_' . $foto->getClientOriginalName();
-            $fotoPath = $foto->storeAs('siswa', $fotoName, 'public');
+        // Gunakan transaction untuk memastikan semua data tersimpan atau tidak sama sekali
+        DB::beginTransaction();
+        try {
+            // 1. Simpan data siswa terlebih dahulu (tanpa foto)
+            $siswa = Siswa::create([
+                'nama_siswa' => $request->nama_siswa,
+                'nisn' => $request->nisn,
+                'tanggal_lahir' => $request->tanggal_lahir,
+                'jenis_kelamin' => $request->jenis_kelamin,
+                'email' => $request->email,
+                'no_hp' => $request->no_hp,
+                'alamat' => $request->alamat,
+                'id_kelas' => $request->id_kelas,
+                'id_jurusan' => $request->id_jurusan,
+            ]);
+
+            // 2. Loop dan simpan setiap foto yang di-upload
+            if ($request->hasFile('foto_siswa')) {
+                foreach ($request->file('foto_siswa') as $foto) {
+                    $fotoName = $siswa->id . '_' . time() . '_' . $foto->getClientOriginalName();
+                    $path = $foto->storeAs('siswa_fotos', $fotoName, 'public');
+
+                    // Buat record di tabel foto_siswa
+                    FotoSiswa::create([
+                        'id_siswa' => $siswa->id,
+                        'path' => $path,
+                    ]);
+                }
+            }
+            
+            DB::commit(); // Jika semua berhasil, simpan perubahan
+            
+            return redirect()->route('admin.siswa.index')->with('success', 'Siswa baru berhasil didaftarkan!');
+
+        } catch (\Exception $e) {
+            DB::rollBack(); // Jika ada error, batalkan semua
+            return redirect()->back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage())->withInput();
         }
-
-        // Simpan data siswa
-        $siswa = new Siswa();
-        $siswa->foto_siswa = $fotoPath ?? null;
-        $siswa->nama_siswa = $request->nama_siswa;
-        $siswa->nisn = $request->nisn;
-        $siswa->tanggal_lahir = $request->tanggal_lahir;
-        $siswa->jenis_kelamin = $request->jenis_kelamin;
-        $siswa->email = $request->email;
-        $siswa->no_hp = $request->no_hp;
-        $siswa->alamat = $request->alamat;
-        $siswa->id_kelas = $request->id_kelas;
-        $siswa->id_jurusan = $request->id_jurusan;
-        $siswa->save();
-
-        return redirect()->route('admin.siswa.index')
-            ->with('success', 'Siswa baru berhasil didaftarkan!');
     }
 
     /**

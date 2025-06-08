@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\AbsensiLaporanController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\BelController;
 use App\Http\Controllers\PresensiController;
@@ -9,7 +10,7 @@ use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\Api\DevicesApiController;
 use App\Http\Controllers\Api\SiswaApiController;
 use App\Http\Controllers\Api\AbsensiSiswaApiController;
-
+use App\Http\Controllers\Api\DeviceStudentController;
 
 Route::prefix('bel')->group(function () {
     Route::post('/ring', [BelController::class, 'ring'])->name('api.bel.ring');
@@ -51,3 +52,7 @@ Route::get('/siswa', [SiswaApiController::class, 'index']);
 Route::get('/devices', [DevicesApiController::class, 'index']);
 
 Route::post('/absensi-siswa', [AbsensiSiswaApiController::class, 'store']);
+
+Route::get('/devices/{device}/students', [DeviceStudentController::class, 'index']);
+
+Route::get('/laporan-absensi', AbsensiLaporanController::class);

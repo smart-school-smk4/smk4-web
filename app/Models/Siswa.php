@@ -39,4 +39,9 @@ class Siswa extends Model
     {
         return $this->hasMany(AbsensiSiswa::class, 'id_siswa');
     }
+
+    public function fotos()
+    {
+        return $this->hasMany(FotoSiswa::class, 'id_siswa');
+    }
 }

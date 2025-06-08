@@ -16,6 +16,7 @@ return new class extends Migration
             $table->string('nama_device')->unique();
             $table->foreignId('id_kelas')->constrained('kelas')->onDelete('cascade');
             $table->foreignId('id_ruangan')->constrained('ruangan')->onDelete('cascade');
+            $table->string('ip_address')->nullable();
             $table->timestamps();
         });
     }

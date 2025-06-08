@@ -21,7 +21,7 @@ class AbsensiGuru extends Model
     //Relasi ke tabel devices
     public function devices()
     {
-        return $this->belongsTo(Device::class, 'id_devices');
+        return $this->belongsTo(Devices::class, 'id_devices');
     }
     
     // Relasi ke tabel siswa

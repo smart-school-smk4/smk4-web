@@ -16,6 +16,7 @@ use App\Http\Controllers\SiswaController;
 use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\RuanganController;
 use App\Http\Controllers\BellHistoryController;
+use App\Http\Controllers\DevicesController;
 use App\Models\AbsensiGuru;
 use App\Models\AbsensiSiswa;
 
@@ -91,6 +92,16 @@ Route::middleware(['auth'])->group(function () {
             'update' => 'admin.ruangan.update',
             'destroy' => 'admin.ruangan.destroy',
         ]);
+
+        Route::resource('devices', DevicesController::class)->names([
+            'index' => 'admin.devices.index',
+            'create' => 'admin.devices.create',
+            'store' => 'admin.devices.store',
+            'edit' => 'admin.devices.edit',
+            'update' => 'admin.devices.update',
+            'destroy' => 'admin.devices.destroy',
+        ]);
+
         // Presensi Siswa
         Route::controller(AbsensiSiswaController::class)->group(function () {
             Route::get('/presensi/siswa', 'index')->name('admin.presensi.siswa');

@@ -52,6 +52,9 @@
                     <li><a href="{{ route('admin.ruangan.index') }}"
                             class="block p-2 rounded-lg {{ request()->is('admin/ruangan/index') ? 'bg-blue-100 text-blue-600' : 'bg-gray-50 text-gray-800' }}">Ruangan</a>
                     </li>
+                    <li><a href="{{ route('admin.devices.index') }}"
+                            class="block p-2 rounded-lg {{ request()->is('admin/devices/index') ? 'bg-blue-100 text-blue-600' : 'bg-gray-50 text-gray-800' }}">Devices</a>
+                    </li>
                 </ul>
             </li>
 

@@ -44,7 +44,7 @@ class SiswaTableSeeder extends Seeder
                 'alamat' => 'Jl. Kenanga No. 3',
                 'no_hp' => '081234567892',
                 'email' => 'raihan@example.com',
-                'id_jurusan' => 2,
+                'id_jurusan'  => 2,
                 'id_kelas' => 3,
             ],
         ]);

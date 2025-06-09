@@ -107,12 +107,14 @@ document.addEventListener("DOMContentLoaded", function() {
     const cameraStatus = document.getElementById("cameraStatus");
     const cameraTitle = document.getElementById("camera-title");
 
-    let fetchInterval; // Variabel untuk menyimpan interval
+    let fetchInterval; 
 
     function updateCameraFeed() {
         const selectedOption = deviceSelect.options[deviceSelect.selectedIndex];
         const deviceIp = selectedOption.dataset.ip;
         const deviceName = selectedOption.text;
+        
+        console.log("Mencoba menghubungkan ke IP:", deviceIp);
 
         cameraFeed.classList.add('hidden');
         cameraFeed.src = '';
@@ -125,10 +127,9 @@ document.addEventListener("DOMContentLoaded", function() {
         }
 
         cameraTitle.innerText = `Live: ${deviceName}`;
-        cameraStatus.innerHTML = `<div class="flex flex-col items-center justify-center h-full"><svg class="animate-spin h-8 w-8 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><p class="mt-2">Menghubungkan...</p></div>`;
+        cameraStatus.innerHTML = `<div class="flex flex-col items-center justify-center h-full"><svg class="animate-spin h-8 w-8 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><p class="mt-2">Menghubungkan ke ${deviceIp}...</p></div>`;
         cameraStatus.style.display = 'block';
 
-        // PERBAIKAN: Gunakan variabel deviceIp yang dinamis
         cameraFeed.src = `http://${deviceIp}:5000/video_feed`;
     }
 
@@ -150,10 +151,14 @@ document.addEventListener("DOMContentLoaded", function() {
         const tanggal = document.getElementById('tanggal').value;
         
         laporanTitle.innerText = `Laporan Kehadiran ${formatIndonesianDate(tanggal)}`;
-        const url = `/api/laporan-absensi?tanggal=${tanggal}&jurusan_id=${jurusanId}&kelas_id=${kelasId}&device_id=${deviceId}`;
+        
+        // === PERBAIKAN DI SINI ===
+        // Menambahkan parameter acak (_=timestamp) untuk mencegah browser caching
+        const cacheBuster = `&_=${new Date().getTime()}`;
+        const url = `/api/laporan-absensi?tanggal=${tanggal}&jurusan_id=${jurusanId}&kelas_id=${kelasId}&device_id=${deviceId}${cacheBuster}`;
 
         try {
-            const response = await fetch(url);
+            const response = await fetch(url, { cache: 'no-store' }); // Menambahkan opsi untuk mencegah cache
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             const data = await response.json();
             renderTable(data);
@@ -198,16 +203,12 @@ document.addEventListener("DOMContentLoaded", function() {
         return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()} (${days[date.getDay()]})`;
     }
 
-    // Fungsi baru untuk memulai/mengatur ulang interval
     function startAutoRefresh() {
-        // Hapus interval lama jika ada, untuk mencegah duplikasi
         clearInterval(fetchInterval);
-        
-        // Panggil data segera saat filter diubah
+        tableBody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-gray-500">Memuat data...</td></tr>`;
         fetchAttendanceData();
-        
-        // Atur interval baru untuk memanggil data setiap 15 detik
-        fetchInterval = setInterval(fetchAttendanceData, 15000); // 15000 ms = 15 detik
+        // Mengubah interval menjadi lebih cepat untuk pengujian, misal 5 detik
+        fetchInterval = setInterval(fetchAttendanceData, 5000); // 5000 ms = 5 detik
     }
 
     filterInputs.forEach(input => {
@@ -215,12 +216,9 @@ document.addEventListener("DOMContentLoaded", function() {
     });
 
     deviceSelect.addEventListener('change', function() {
-        // startAutoRefresh() sudah dipanggil oleh event listener di atas
         updateCameraFeed(); 
     });
 
-    // === INISIALISASI ===
-    // Panggil fungsi saat halaman pertama kali dimuat untuk memulai semuanya
     startAutoRefresh();
 });
 </script>

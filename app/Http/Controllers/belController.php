@@ -60,22 +60,8 @@ class BelController extends Controller
     protected function handleBellEvent(string $message, string $triggerType): void
     {
         Log::debug("Processing {$triggerType} bell", ['raw_message' => $message]);
-        
         try {
             $data = json_decode($message, true, 512, JSON_THROW_ON_ERROR);
-            
-            // Cek duplikasi dalam 60 detik terakhir
-            $existing = BellHistory::where('file_number', $data['file_number'])
-                ->where('created_at', '>=', now()->subMinute())
-                ->exists();
-            
-            if ($existing) {
-                Log::warning("Duplicate bell event blocked", [
-                    'type' => $triggerType,
-                    'data' => $data
-                ]);
-                return;
-            }
             
             $requiredFields = ['hari', 'waktu', 'file_number'];
             foreach ($requiredFields as $field) {

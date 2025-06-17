@@ -47,20 +47,6 @@ class BellController extends Controller
         $validated['trigger_type'] = $triggerType;
         $validated['ring_time'] = Carbon::now();
 
-        $exists = BellHistory::where('hari', $validated['hari'])
-            ->where('waktu', $validated['waktu'])
-            ->where('file_number', $validated['file_number'])
-            ->where('trigger_type', $triggerType)
-            ->where('ring_time', '>=', Carbon::now()->subSeconds(60))
-            ->exists();
-
-        if ($exists) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Event already recorded recently, skipping duplicate.'
-            ], 409);
-        }
-
         $history = BellHistory::create($validated);
 
         return response()->json([

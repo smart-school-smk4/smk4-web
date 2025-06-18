@@ -7,30 +7,30 @@ use Illuminate\Http\Request;
 
 class BellHistoryController extends Controller
 {
-    public function history()
+    public function history(Request $request)
     {
-        $histories = BellHistory::orderBy('ring_time', 'desc')
-                     ->paginate(20);
-        
+        // Use the same filtering logic in both methods
+        $query = BellHistory::query();
+    
+        if ($request->has('hari') && $request->hari != '') {
+            $query->where('hari', $request->hari);
+        }
+    
+        if ($request->has('trigger_type') && $request->trigger_type != '') {
+            $query->where('trigger_type', $request->trigger_type);
+        }
+    
+        $histories = $query->orderBy('ring_time', 'desc')
+                     ->paginate(20)
+                     ->appends(request()->query()); // Preserve filter parameters
+    
         return view('admin.bel.history', compact('histories'));
     }
     
     public function filterHistory(Request $request)
     {
-        $query = BellHistory::query();
-    
-        if ($request->has('hari')) {
-            $query->where('hari', $request->hari);
-        }
-    
-        if ($request->has('trigger_type')) {
-            $query->where('trigger_type', $request->trigger_type);
-        }
-    
-        $histories = $query->orderBy('ring_time', 'desc')
-                     ->paginate(20);
-    
-        return view('admin.bel.history', compact('histories'));
+        // Just call the history method to avoid code duplication
+        return $this->history($request);
     }
     
     public function destroy($id)

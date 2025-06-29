@@ -532,10 +532,10 @@ function updateNextSchedule() {
 document.addEventListener('DOMContentLoaded', function() {
     updateClock();
     updateNextSchedule();
-    
+    getLiveStatus();
     // Refresh every minute to stay accurate
     setInterval(updateNextSchedule, 60000);
-    setInterval(getLiveStatus, 60000); // Update status every 30 seconds
+    setInterval(getLiveStatus, 3000); // Update status every 30 seconds
     
     // Add animation to status cards on hover
     document.querySelectorAll('#mqttCard, #rtcCard, #dfplayerCard').forEach(card => {

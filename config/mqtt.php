@@ -2,22 +2,20 @@
 
 declare(strict_types=1);
 
-use PhpMqtt\Client\MqttClient;
-
 return [
     'default_connection' => 'bel_sekolah',
 
     'connections' => [
         'bel_sekolah' => [
-            'host' => env('MQTT_HOST', 'localhost'),
+            'host' => env('MQTT_HOST', '192.168.1.5'),
             'port' => (int) env('MQTT_PORT', 1883),
             'client_id' => env('MQTT_CLIENT_ID', 'laravel_bel_' . bin2hex(random_bytes(4))),
             'use_clean_session' => false,
             'connection_settings' => [
                 'auto_reconnect' => [
                     'enabled' => true,
-                    'max_reconnect_attempts' => 5,
-                    'delay_between_reconnect_attempts' => 3,
+                    'max_reconnect_attempts' => 2,
+                    'delay_between_reconnect_attempts' => 1,
                 ],
                 'last_will' => [
                     'topic' => 'bel/sekolah/status/backend',
@@ -25,9 +23,9 @@ return [
                     'quality_of_service' => 1,
                     'retain' => true,
                 ],
-                'connect_timeout' => 10,
+                'connect_timeout' => 5,
                 'socket_timeout' => 5,
-                'keep_alive_interval' => 60, 
+                'keep_alive_interval' => 10, 
             ],
         ],
     ],

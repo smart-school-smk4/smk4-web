@@ -31,10 +31,7 @@ Route::controller(LoginController::class)->group(function () {
 });
 
 // Authenticated routes
-Route::middleware(['auth'])->group(function () {
-    // Dashboard
-    Route::get('/dashboard', [AdminController::class, 'index'])->name('admin.dashboard');
-    
+Route::middleware(['auth'])->group(function () {    
     // Admin prefix routes
     Route::prefix('admin')->group(function () {
         // Dashboard

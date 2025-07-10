@@ -162,9 +162,6 @@ function confirmCreate() {
         cancelButtonText: 'Batal',
         backdrop: `
             rgba(0,0,0,0.7)
-            url("https://sweetalert2.github.io/images/nyan-cat.gif")
-            left top
-            no-repeat
         `
     }).then((result) => {
         if (result.isConfirmed) {

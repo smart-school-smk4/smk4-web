@@ -17,6 +17,7 @@ use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\RuanganController;
 use App\Http\Controllers\BellHistoryController;
 use App\Http\Controllers\DevicesController;
+use App\Http\Controllers\SettingPresensiController;
 use App\Models\AbsensiGuru;
 use App\Models\AbsensiSiswa;
 
@@ -58,6 +59,16 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/guru/{id}/edit', 'edit')->name('admin.guru.edit'); // form edit guru
             Route::put('/guru/{id}', 'update')->name('admin.guru.update'); // simpan update guru
             Route::delete('/guru/{id}', 'destroy')->name('admin.guru.destroy'); // hapus guru
+        });
+
+        // Setting Presensi
+        Route::controller(SettingPresensiController::class)->group(function () {
+           Route::get('/setting_presensi', 'index')->name('admin.setting_presensi.index');
+           Route::get('/setting_presensi/create', 'create')->name('admin.setting_presensi.create');
+           Route::get('/setting_presensi/{id}/edit', 'edit')->name('admin.setting_presensi.edit');
+           Route::post('/setting_presensi', 'store')->name('admin.setting_presensi.store'); 
+           Route::put('/setting_presensi/{id}', 'update')->name('admin.setting_presensi.update');
+           Route::delete('/setting_presensi/{id}', 'destroy')->name('admin.setting_presensi.destroy');
         });
 
         // Kelas
@@ -103,6 +114,8 @@ Route::middleware(['auth'])->group(function () {
         Route::controller(AbsensiSiswaController::class)->group(function () {
             Route::get('/presensi/siswa', 'index')->name('admin.presensi.siswa');
         });
+        
+        
 
         // Presensi Guru
         Route::controller(AbsensiGuruController::class)->group(function () {

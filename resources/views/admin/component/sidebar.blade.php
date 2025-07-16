@@ -83,6 +83,9 @@
                     <li><a href="{{ route('admin.presensi.guru') }}"
                             class="block p-2 rounded-lg {{ request()->is('admin/presensi/guru') ? 'bg-blue-100 text-blue-600' : 'bg-gray-50 text-gray-800' }}">Guru</a>
                     </li>
+                    <li><a href="{{ route('admin.setting_presensi.index') }}"
+                            class="block p-2 rounded-lg {{ request()->is('admin/setting_presensi/index') ? 'bg-blue-100 text-blue-600' : 'bg-gray-50 text-gray-800' }}">Setting Presensi</a>                 
+                    </li>
                 </ul>
             </li>
             <li class="mb-2">

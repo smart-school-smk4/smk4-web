@@ -16,7 +16,7 @@ return new class extends Migration
             $table->foreignId('id_siswa')->constrained('siswa')->onDelete('cascade');
             $table->foreignId('id_devices')->nullable()->constrained('devices')->onDelete('set null');
             $table->timestamp('waktu');
-            $table->string('status');
+            $table->enum('status', ['masuk', 'pulang']);
             $table->timestamps();
 
         });

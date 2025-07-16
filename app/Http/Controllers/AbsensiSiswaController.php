@@ -6,6 +6,7 @@ use App\Models\AbsensiSiswa;
 use App\Models\Jurusan;
 use App\Models\Kelas;
 use App\Models\Devices;
+use App\Models\SettingPresensi;
 use Illuminate\Http\Request; // Import Request
 use Carbon\Carbon;
 

@@ -22,7 +22,7 @@ use App\Models\AbsensiGuru;
 use App\Models\AbsensiSiswa;
 
 // Public routes
-Route::get('/', [IndexController::class, 'index'])->name('index');
+Route::redirect('/', '/login');
 
 // Authentication routes
 Route::controller(LoginController::class)->group(function () {

@@ -44,16 +44,16 @@
                             class="block p-2 rounded-lg {{ request()->is('admin/guru') ? 'bg-blue-100 text-blue-600' : 'bg-gray-50 text-gray-800' }}">Guru</a>
                     </li>
                     <li><a href="{{ route('admin.kelas.index') }}"
-                            class="block p-2 rounded-lg {{ request()->is('admin/kelas/index') ? 'bg-blue-100 text-blue-600' : 'bg-gray-50 text-gray-800' }}">Kelas</a>
+                            class="block p-2 rounded-lg {{ request()->is('admin/kelas') ? 'bg-blue-100 text-blue-600' : 'bg-gray-50 text-gray-800' }}">Kelas</a>
                     </li>
                     <li><a href="{{ route('admin.jurusan.index') }}"
-                            class="block p-2 rounded-lg {{ request()->is('admin/jurusan/index') ? 'bg-blue-100 text-blue-600' : 'bg-gray-50 text-gray-800' }}">Jurusan</a>
+                            class="block p-2 rounded-lg {{ request()->is('admin/jurusan') ? 'bg-blue-100 text-blue-600' : 'bg-gray-50 text-gray-800' }}">Jurusan</a>
                     </li>
                     <li><a href="{{ route('admin.ruangan.index') }}"
-                            class="block p-2 rounded-lg {{ request()->is('admin/ruangan/index') ? 'bg-blue-100 text-blue-600' : 'bg-gray-50 text-gray-800' }}">Ruangan</a>
+                            class="block p-2 rounded-lg {{ request()->is('admin/ruangan') ? 'bg-blue-100 text-blue-600' : 'bg-gray-50 text-gray-800' }}">Ruangan</a>
                     </li>
                     <li><a href="{{ route('admin.devices.index') }}"
-                            class="block p-2 rounded-lg {{ request()->is('admin/devices/index') ? 'bg-blue-100 text-blue-600' : 'bg-gray-50 text-gray-800' }}">Devices</a>
+                            class="block p-2 rounded-lg {{ request()->is('admin/devices') ? 'bg-blue-100 text-blue-600' : 'bg-gray-50 text-gray-800' }}">Devices</a>
                     </li>
                 </ul>
             </li>
@@ -84,7 +84,7 @@
                             class="block p-2 rounded-lg {{ request()->is('admin/presensi/guru') ? 'bg-blue-100 text-blue-600' : 'bg-gray-50 text-gray-800' }}">Guru</a>
                     </li>
                     <li><a href="{{ route('admin.setting_presensi.index') }}"
-                            class="block p-2 rounded-lg {{ request()->is('admin/setting_presensi/index') ? 'bg-blue-100 text-blue-600' : 'bg-gray-50 text-gray-800' }}">Setting Presensi</a>                 
+                            class="block p-2 rounded-lg {{ request()->is('admin/setting_presensi') ? 'bg-blue-100 text-blue-600' : 'bg-gray-50 text-gray-800' }}">Setting Presensi</a>                 
                     </li>
                 </ul>
             </li>

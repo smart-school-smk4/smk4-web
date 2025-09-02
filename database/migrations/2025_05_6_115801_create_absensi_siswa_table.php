@@ -15,10 +15,16 @@ return new class extends Migration
             $table->id();
             $table->foreignId('id_siswa')->constrained('siswa')->onDelete('cascade');
             $table->foreignId('id_devices')->nullable()->constrained('devices')->onDelete('set null');
-            $table->timestamp('waktu');
-            $table->enum('status', ['masuk', 'pulang']);
+            $table->date('tanggal');                       // Tanggal absensi
+            $table->timestamp('waktu_masuk')->nullable();  // Waktu masuk
+            $table->timestamp('waktu_keluar')->nullable(); // Waktu keluar
+            $table->enum('status', ['hadir', 'terlambat', 'sakit', 'izin', 'alpha'])->default('alpha');
+            $table->text('keterangan')->nullable();
             $table->timestamps();
 
+            // Index untuk performa query
+            $table->index(['id_siswa', 'tanggal']);
+            $table->index('tanggal');
         });
     }
 

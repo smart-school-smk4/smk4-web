@@ -12,6 +12,7 @@
         "laravel/framework": "^11.31",
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^2.9",
+        "maatwebsite/excel": "^3.1",
         "php-mqtt/client": "^2.2",
         "php-mqtt/laravel-client": "^1.6",
         "react/event-loop": "^1.5"

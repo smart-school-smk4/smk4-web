@@ -1,6 +1,9 @@
 /.phpunit.cache
 /node_modules
-/public/build
+# /public/build
+/face_recognition_flask_updated.py
+/README_Flask.md
+/.env.flask
 /public/hot
 /public/storage
 /storage/*.key
@@ -21,3 +24,5 @@ yarn-error.log
 /.nova
 /.vscode
 /.zed
+/requirements_flask.txt
+/DEPLOY_STYLING.md

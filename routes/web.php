@@ -39,6 +39,7 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/siswa', 'index')->name('admin.siswa.index');             // halaman utama siswa
             Route::get('/siswa/create', 'create')->name('admin.siswa.create');    // form tambah siswa
             Route::post('/siswa', 'store')->name('admin.siswa.store');            // simpan siswa baru
+            Route::get('/siswa/{id}/detail', 'detail')->name('admin.siswa.detail'); // detail siswa
             Route::get('/siswa/{id}/edit', 'edit')->name('admin.siswa.edit');     // form edit siswa
             Route::put('/siswa/{id}', 'update')->name('admin.siswa.update');      // simpan update siswa
             Route::delete('/siswa/{id}', 'destroy')->name('admin.siswa.destroy'); // hapus siswa

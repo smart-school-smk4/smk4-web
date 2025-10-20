@@ -13,6 +13,15 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 
 class SiswaController extends Controller
+
+    /**
+     * Show the detail of the specified siswa.
+     */
+    public function detail(string $id)
+    {
+        $siswa = Siswa::with(['kelas', 'jurusan', 'fotos'])->findOrFail($id);
+        return view('admin.siswa.detail', compact('siswa'));
+    }
 {
     /**
      * Display a listing of the resource.
@@ -187,5 +196,13 @@ class SiswaController extends Controller
 
         return redirect()->route('admin.siswa.index')
             ->with('success', 'Siswa berhasil dihapus!');
+    }
+    /**
+     * Show the detail of the specified siswa.
+     */
+    public function detail(string $id)
+    {
+        $siswa = Siswa::with(['kelas', 'jurusan', 'fotos'])->findOrFail($id);
+        return view('admin.siswa.detail', compact('siswa'));
     }
 }

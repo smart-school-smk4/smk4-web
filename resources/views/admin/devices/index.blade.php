@@ -47,7 +47,7 @@
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">No</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Device ID</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nama Device</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">IP Address</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Kelas</th>
@@ -58,7 +58,7 @@
                     <tbody class="bg-white divide-y divide-gray-200">
                         @forelse($devices as $key => $device)
                         <tr class="hover:bg-gray-50 transition">
-                            <td class="px-6 py-4">{{ $devices->firstItem() + $key }}</td>
+                            <td class="px-6 py-4 font-mono text-gray-700">{{ $device->id }}</td>
                             <td class="px-6 py-4 font-medium text-gray-900">{{ $device->nama_device }}</td>
                             <td class="px-6 py-4 text-gray-500 font-mono">{{ $device->ip_address ?? 'N/A' }}</td>
                             <td class="px-6 py-4 text-gray-500">{{ $device->kelas->nama_kelas ?? '-' }}</td>

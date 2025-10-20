@@ -99,7 +99,7 @@ class AbsensiSiswaController extends Controller
         $result = $absensi->map(function ($item, $index) {
             return [
                 'no'           => $index + 1,
-                'nama_siswa'   => $item->siswa->nama ?? '-',
+                'nama_siswa'   => $item->siswa->nama_siswa ?? '-',
                 'jurusan'      => $item->siswa->jurusan->nama_jurusan ?? '-',
                 'kelas'        => $item->siswa->kelas->nama_kelas ?? '-',
                 'waktu_masuk'  => $item->waktu_masuk ? Carbon::parse($item->waktu_masuk)->format('H:i:s') : '-',

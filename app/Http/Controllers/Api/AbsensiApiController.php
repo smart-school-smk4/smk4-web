@@ -58,7 +58,7 @@ class AbsensiApiController extends Controller
                         'message' => 'Absensi masuk berhasil dicatat',
                         'data'    => [
                             'id'          => $absensi->id,
-                            'siswa'       => $absensi->siswa->nama,
+                            'siswa'       => $absensi->siswa->nama_siswa,
                             'waktu_masuk' => $absensi->waktu_masuk->format('Y-m-d H:i:s'),
                             'status'      => $absensi->status,
                         ],
@@ -97,7 +97,7 @@ class AbsensiApiController extends Controller
                         'message' => 'Absensi masuk berhasil dicatat',
                         'data'    => [
                             'id'          => $absensi->id,
-                            'siswa'       => $absensi->siswa->nama,
+                            'siswa'       => $absensi->siswa->nama_siswa,
                             'waktu_masuk' => $absensi->waktu_masuk->format('Y-m-d H:i:s'),
                             'status'      => $absensi->status,
                         ],
@@ -132,7 +132,7 @@ class AbsensiApiController extends Controller
                         'message' => 'Absensi keluar berhasil dicatat',
                         'data'    => [
                             'id'           => $absensi->id,
-                            'siswa'        => $absensi->siswa->nama,
+                            'siswa'        => $absensi->siswa->nama_siswa,
                             'waktu_masuk'  => $absensi->waktu_masuk->format('Y-m-d H:i:s'),
                             'waktu_keluar' => $absensi->waktu_keluar->format('Y-m-d H:i:s'),
                             'status'       => $absensi->status,

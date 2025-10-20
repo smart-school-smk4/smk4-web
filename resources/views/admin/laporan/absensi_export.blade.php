@@ -79,8 +79,8 @@
             @forelse ($absensi as $index => $item)
                 <tr>
                     <td>{{ $index + 1 }}</td>
-                    <td>{{ $item->siswa->nis ?? '-' }}</td>
-                    <td>{{ $item->siswa->nama ?? '-' }}</td>
+                    <td>{{ $item->siswa->nisn ?? '-' }}</td>
+                    <td>{{ $item->siswa->nama_siswa ?? '-' }}</td>
                     <td>{{ $item->siswa->kelas->nama_kelas ?? '-' }}</td>
                     <td>{{ $item->siswa->jurusan->nama_jurusan ?? '-' }}</td>
                     <td>{{ \Carbon\Carbon::parse($item->tanggal)->format('d/m/Y') }}</td>

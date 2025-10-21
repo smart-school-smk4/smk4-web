@@ -142,12 +142,10 @@ class AbsensiSiswaController extends Controller
                 $settingPresensi = SettingPresensi::first();
                 $status          = 'hadir';
 
-                // Tentukan status berdasarkan waktu masuk
-                if ($settingPresensi) {
-                    $jamMasuk       = Carbon::parse($settingPresensi->jam_masuk);
-                    $batasTerlambat = $jamMasuk->addMinutes($settingPresensi->toleransi_terlambat ?? 15);
-
-                    if ($now->gt($batasTerlambat)) {
+                // Tentukan status berdasarkan waktu masuk: jika lewat dari waktu_masuk_selesai maka "terlambat"
+                if ($settingPresensi && !empty($settingPresensi->waktu_masuk_selesai)) {
+                    $batasOnTime = Carbon::today()->setTimeFromTimeString($settingPresensi->waktu_masuk_selesai);
+                    if ($now->gt($batasOnTime)) {
                         $status = 'terlambat';
                     }
                 }
@@ -191,11 +189,9 @@ class AbsensiSiswaController extends Controller
                 $settingPresensi = SettingPresensi::first();
                 $status          = 'hadir';
 
-                if ($settingPresensi) {
-                    $jamMasuk       = Carbon::parse($settingPresensi->jam_masuk);
-                    $batasTerlambat = $jamMasuk->addMinutes($settingPresensi->toleransi_terlambat ?? 15);
-
-                    if ($now->gt($batasTerlambat)) {
+                if ($settingPresensi && !empty($settingPresensi->waktu_masuk_selesai)) {
+                    $batasOnTime = Carbon::today()->setTimeFromTimeString($settingPresensi->waktu_masuk_selesai);
+                    if ($now->gt($batasOnTime)) {
                         $status = 'terlambat';
                     }
                 }

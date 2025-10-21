@@ -171,14 +171,12 @@ class AbsensiApiController extends Controller
         }
 
         try {
-            $jamMasuk       = Carbon::parse($settingPresensi->jam_masuk);
-            $toleransi      = $settingPresensi->toleransi_terlambat ?? 15;
-            $batasTerlambat = $jamMasuk->addMinutes($toleransi);
-
-            if ($waktuMasuk->gt($batasTerlambat)) {
-                return 'terlambat';
+            // Gunakan cutoff waktu_masuk_selesai sebagai batas hadir on-time
+            if (!empty($settingPresensi->waktu_masuk_selesai)) {
+                $batasOnTime = Carbon::today()->setTimeFromTimeString($settingPresensi->waktu_masuk_selesai);
+                return $waktuMasuk->gt($batasOnTime) ? 'terlambat' : 'hadir';
             }
-
+            // Fallback aman bila field kosong
             return 'hadir';
         } catch (\Exception $e) {
             Log::warning('Error determining status, defaulting to hadir:', $e->getMessage());

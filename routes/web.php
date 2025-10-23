@@ -63,6 +63,7 @@ Route::middleware(['auth'])->group(function () {
             Route::post('/setting_presensi', 'store')->name('admin.setting_presensi.store');
             Route::put('/setting_presensi/{id}', 'update')->name('admin.setting_presensi.update');
             Route::delete('/setting_presensi/{id}', 'destroy')->name('admin.setting_presensi.destroy');
+            Route::post('/setting_presensi/set-device-mode', 'setDeviceMode')->name('admin.setting_presensi.setDeviceMode');
         });
 
         // Kelas

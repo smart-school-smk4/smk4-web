@@ -3,14 +3,17 @@
 namespace App\Http\Controllers;
 
 use App\Models\SettingPresensi;
+use App\Models\Devices;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
 
 class SettingPresensiController extends Controller
 {
     public function index()
     {
         $settings = SettingPresensi::all();
-        return view('admin.setting_presensi.index', compact('settings'));
+        $devices = Devices::all();
+        return view('admin.setting_presensi.index', compact('settings', 'devices'));
     }
 
     public function create()
@@ -59,5 +62,54 @@ class SettingPresensiController extends Controller
         $setting->delete();
 
         return redirect()->route('admin.setting_presensi.index')->with('success', 'Pengaturan berhasil dihapus.');
+    }
+
+    /**
+     * Set mode absensi ke Flask device (masuk/keluar)
+     */
+    public function setDeviceMode(Request $request)
+    {
+        $request->validate([
+            'device_id' => 'required|exists:devices,id',
+            'mode' => 'required|in:masuk,keluar'
+        ]);
+
+        $device = Devices::findOrFail($request->device_id);
+        $mode = $request->mode;
+
+        if (empty($device->ip_address)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Device tidak memiliki IP address'
+            ], 400);
+        }
+
+        try {
+            // Panggil Flask API endpoint /set_mode/{mode}
+            $url = "http://{$device->ip_address}:5000/set_mode/{$mode}";
+            
+            $response = Http::timeout(5)->get($url);
+
+            if ($response->successful()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => "Mode device berhasil diubah ke: " . strtoupper($mode),
+                    'data' => [
+                        'device' => $device->nama_device,
+                        'mode' => $mode
+                    ]
+                ]);
+            } else {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Gagal mengubah mode device. Response: ' . $response->body()
+                ], 500);
+            }
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

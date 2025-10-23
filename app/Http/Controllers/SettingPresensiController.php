@@ -85,30 +85,65 @@ class SettingPresensiController extends Controller
         }
 
         try {
-            // Panggil Flask API endpoint /set_mode/{mode}
-            $url = "http://{$device->ip_address}:5000/set_mode/{$mode}";
+            // Deteksi environment - di production gunakan IP internal/localhost jika Flask di server yang sama
+            // atau gunakan IP LAN jika Flask di device terpisah
+            $ipAddress = $device->ip_address;
             
-            $response = Http::timeout(5)->get($url);
+            // Jika IP adalah 127.0.0.1 dan kita di production, gunakan localhost dari server
+            // Karena 127.0.0.1 di database berarti Flask ada di server yang sama dengan Laravel
+            if ($ipAddress === '127.0.0.1' && config('app.env') === 'production') {
+                $ipAddress = 'localhost';
+            }
+            
+            // Panggil Flask API endpoint /set_mode/{mode}
+            // Selalu gunakan HTTP karena Flask API internal (tidak perlu HTTPS untuk komunikasi server-to-server)
+            $url = "http://{$ipAddress}:5000/set_mode/{$mode}";
+            
+            \Log::info("Attempting to connect to Flask API: {$url}");
+            
+            // Timeout lebih panjang untuk production (10 detik)
+            $response = Http::timeout(10)
+                ->withOptions([
+                    'verify' => false, // Disable SSL verification untuk internal API
+                    'connect_timeout' => 5
+                ])
+                ->get($url);
 
             if ($response->successful()) {
+                \Log::info("Successfully changed mode to {$mode} for device {$device->nama_device}");
+                
                 return response()->json([
                     'success' => true,
                     'message' => "Mode device berhasil diubah ke: " . strtoupper($mode),
                     'data' => [
                         'device' => $device->nama_device,
-                        'mode' => $mode
+                        'mode' => $mode,
+                        'ip' => $ipAddress
                     ]
                 ]);
             } else {
+                \Log::error("Flask API returned error: " . $response->body());
+                
                 return response()->json([
                     'success' => false,
-                    'message' => 'Gagal mengubah mode device. Response: ' . $response->body()
+                    'message' => 'Gagal mengubah mode device. Status: ' . $response->status()
                 ], 500);
             }
-        } catch (\Exception $e) {
+        } catch (\Illuminate\Http\Client\ConnectionException $e) {
+            \Log::error("Connection failed to Flask API: " . $e->getMessage());
+            
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Tidak dapat terhubung ke device. Pastikan Flask API aktif di ' . ($ipAddress ?? $device->ip_address),
+                'debug' => config('app.debug') ? $e->getMessage() : null
+            ], 500);
+        } catch (\Exception $e) {
+            \Log::error("Error in setDeviceMode: " . $e->getMessage());
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan sistem',
+                'debug' => config('app.debug') ? $e->getMessage() : null
             ], 500);
         }
     }

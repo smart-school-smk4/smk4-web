@@ -130,7 +130,8 @@ function setDeviceMode(deviceId, mode) {
     showToast('⏳ Mengubah mode device...', 'info');
     
     // Panggil Laravel API yang akan forward ke Flask
-    fetch('{{ route("admin.setting_presensi.setDeviceMode") }}', {
+    // Gunakan URL relatif agar mengikuti protokol halaman (https/http)
+    fetch('{{ route("admin.setting_presensi.setDeviceMode", [], false) }}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',

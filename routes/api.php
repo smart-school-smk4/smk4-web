@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\DeviceStudentController;
 use App\Http\Controllers\Api\SiswaApiController;
 use App\Http\Controllers\BelController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\SettingPresensiController;
 
 Route::prefix('bel')->group(function () {
     Route::post('/ring', [BelController::class, 'ring'])->name('api.bel.ring');
@@ -56,5 +57,8 @@ Route::get('/absensi-siswa/{siswa}/status', [AbsensiApiController::class, 'getSt
 Route::post('/absensi-siswa-legacy', [AbsensiSiswaApiController::class, 'store']);
 
 Route::get('/devices/{device}/students', [DeviceStudentController::class, 'index']);
+
+// Device mode polling endpoint (untuk Flask pull mode dari server)
+Route::get('/devices/{device}/mode', [SettingPresensiController::class, 'getDeviceMode'])->name('api.devices.mode');
 
 Route::get('/laporan-absensi', AbsensiLaporanController::class);

@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\SettingPresensi;
 use App\Models\Devices;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Http;
 
 class SettingPresensiController extends Controller
@@ -85,6 +87,12 @@ class SettingPresensiController extends Controller
         }
 
         try {
+            // Simpan override mode secara server-side agar device bisa pull (tanpa perlu koneksi inbound)
+            Cache::forever("device_mode:{$device->id}", [
+                'mode' => $mode,
+                'updated_at' => now()->toDateTimeString(),
+            ]);
+
             // Deteksi environment - di production gunakan IP internal/localhost jika Flask di server yang sama
             // atau gunakan IP LAN jika Flask di device terpisah
             $ipAddress = $device->ip_address;
@@ -118,25 +126,35 @@ class SettingPresensiController extends Controller
                     'data' => [
                         'device' => $device->nama_device,
                         'mode' => $mode,
-                        'ip' => $ipAddress
+                        'ip' => $ipAddress,
+                        'delivery' => 'push-and-pull' // push to Flask + stored for pull by device
                     ]
                 ]);
             } else {
                 \Log::error("Flask API returned error: " . $response->body());
                 
                 return response()->json([
-                    'success' => false,
-                    'message' => 'Gagal mengubah mode device. Status: ' . $response->status()
-                ], 500);
+                    'success' => true,
+                    'message' => 'Mode disimpan di server, namun gagal push ke device (akan diambil via polling).',
+                    'data' => [
+                        'device' => $device->nama_device,
+                        'mode' => $mode,
+                        'delivery' => 'pull-only'
+                    ]
+                ], 200);
             }
         } catch (\Illuminate\Http\Client\ConnectionException $e) {
             \Log::error("Connection failed to Flask API: " . $e->getMessage());
             
             return response()->json([
-                'success' => false,
-                'message' => 'Tidak dapat terhubung ke device. Pastikan Flask API aktif di ' . ($ipAddress ?? $device->ip_address),
-                'debug' => config('app.debug') ? $e->getMessage() : null
-            ], 500);
+                'success' => true,
+                'message' => 'Mode disimpan di server. Device akan mengambil via polling jika terkonfigurasi.',
+                'data' => [
+                    'device' => $device->nama_device,
+                    'mode' => $mode,
+                    'delivery' => 'pull-only'
+                ]
+            ], 200);
         } catch (\Exception $e) {
             \Log::error("Error in setDeviceMode: " . $e->getMessage());
             
@@ -146,5 +164,40 @@ class SettingPresensiController extends Controller
                 'debug' => config('app.debug') ? $e->getMessage() : null
             ], 500);
         }
+    }
+
+    /**
+     * Endpoint untuk device mengambil mode (polling)
+     */
+    public function getDeviceMode($deviceId)
+    {
+        // 1) Cek override manual di cache
+        $cached = Cache::get("device_mode:{$deviceId}");
+        if ($cached && isset($cached['mode'])) {
+            return response()->json([
+                'success' => true,
+                'mode' => $cached['mode'],
+                'source' => 'manual',
+                'updated_at' => $cached['updated_at'] ?? null,
+            ]);
+        }
+
+        // 2) Fallback auto berdasarkan SettingPresensi (jadwal)
+        $setting = SettingPresensi::first();
+        $mode = 'masuk';
+        if ($setting) {
+            $now = Carbon::now('Asia/Jakarta')->format('H:i');
+            if ($setting->waktu_masuk_mulai <= $now && $now < $setting->waktu_masuk_selesai) {
+                $mode = 'masuk';
+            } elseif ($setting->waktu_pulang_mulai <= $now && $now < $setting->waktu_pulang_selesai) {
+                $mode = 'keluar';
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'mode' => $mode,
+            'source' => 'auto',
+        ]);
     }
 }

@@ -62,6 +62,51 @@ window.addEventListener('click', function(e) {
 // SCHEDULE MANAGEMENT
 // ======================
 
+// Toggle status non-blocking dengan fetch async/await
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.toggle-status-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', async function(e) {
+            const scheduleId = this.dataset.scheduleId;
+            const route = this.dataset.route;
+            const statusLabel = this.closest('label').querySelector('.status-label');
+            const isChecked = this.checked;
+            
+            try {
+                // Show loading state
+                statusLabel.innerHTML = '<span class="animate-pulse">...</span>';
+                
+                const response = await fetch(route, {
+                    method: 'PUT',
+                    headers: {
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ is_active: isChecked })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    // Update UI langsung tanpa reload
+                    statusLabel.textContent = isChecked ? 'Active' : 'Inactive';
+                    showToast('success', `Status diubah menjadi ${isChecked ? 'Active' : 'Inactive'}`);
+                } else {
+                    // Jika gagal, kembalikan checkbox ke state sebelumnya
+                    this.checked = !isChecked;
+                    statusLabel.textContent = !isChecked ? 'Active' : 'Inactive';
+                    showToast('error', data.message || 'Gagal mengubah status');
+                }
+            } catch (error) {
+                // Jika error, kembalikan checkbox ke state sebelumnya
+                this.checked = !isChecked;
+                statusLabel.textContent = !isChecked ? 'Active' : 'Inactive';
+                showToast('error', 'Terjadi kesalahan: ' + error.message);
+            }
+        });
+    });
+});
+
 // Delete confirmation
 document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.delete-btn').forEach(button => {
@@ -535,7 +580,7 @@ document.addEventListener('DOMContentLoaded', function() {
     getLiveStatus();
     // Refresh every minute to stay accurate
     setInterval(updateNextSchedule, 60000);
-    setInterval(getLiveStatus, 3000); // Update status every 30 seconds
+    setInterval(getLiveStatus, 60000); // Update status every 30 seconds
     
     // Add animation to status cards on hover
     document.querySelectorAll('#mqttCard, #rtcCard, #dfplayerCard').forEach(card => {

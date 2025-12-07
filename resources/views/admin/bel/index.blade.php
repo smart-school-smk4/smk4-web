@@ -88,7 +88,7 @@
         @include('admin.bel.partials.status-card', [
             'id' => 'rtcCard',
             'icon' => 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
-            'title' => 'RTC Module',
+            'title' => 'ESP Module',
             'statusId' => 'rtcStatusText',
             'status' => 'Connected',
             'detailsId' => 'rtcTimeText',

@@ -25,9 +25,9 @@
         </div>
         <div class="p-4">
             <form id="filterForm" method="GET" action="{{ route('admin.announcement.history') }}" class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div>
-                    <label for="mode" class="block text-sm font-medium text-gray-700 mb-1">Mode Pengumuman</label>
-                    <div class="relative">
+                <!-- <div> -->
+                    <!-- <label for="mode" class="block text-sm font-medium text-gray-700 mb-1">Mode Pengumuman</label> -->
+                    <!-- <div class="relative">
                         <select id="mode" name="mode" class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md border bg-white">
                             <option value="">Semua Mode</option>
                             <option value="tts" {{ request('mode') == 'tts' ? 'selected' : '' }}>Text-to-Speech</option>
@@ -36,8 +36,8 @@
                         <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
                             <i class="fas fa-caret-down text-gray-400"></i>
                         </div>
-                    </div>
-                </div>
+                    </div> -->
+                <!-- </div> -->
                 <div>
                     <label for="start_date" class="block text-sm font-medium text-gray-700 mb-1">Dari Tanggal</label>
                     <div class="relative">
@@ -58,7 +58,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="flex items-end space-x-3">
+                <!-- <div class="flex items-end space-x-3">
                     <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 h-[42px] transition-colors">
                         <i class="fas fa-search mr-2"></i> Terapkan Filter
                     </button>
@@ -67,7 +67,7 @@
                         <i class="fas fa-sync-alt mr-2"></i> Reset
                     </a>
                     @endif
-                </div>
+                </div> -->
             </form>
         </div>
     </div>
@@ -81,9 +81,9 @@
                         <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Waktu Pengiriman
                         </th>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <!-- <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Mode
-                        </th>
+                        </th> -->
                         <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Isi Pengumuman
                         </th>
@@ -113,7 +113,7 @@
                                 </div>
                             </div>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
+                        <!-- <td class="px-6 py-4 whitespace-nowrap">
                             @if($announcement->mode === 'tts')
                             <span class="px-2.5 py-0.5 inline-flex items-center text-xs leading-4 font-medium rounded-full bg-green-100 text-green-800">
                                 <i class="fas fa-robot mr-1.5"></i> TTS
@@ -123,7 +123,7 @@
                                 <i class="fas fa-microphone-alt mr-1.5"></i> Manual
                             </span>
                             @endif
-                        </td>
+                        </td> -->
                         <td class="px-6 py-4">
                             <div class="text-sm font-medium text-gray-900">{{ $announcement->short_message }}</div>
                             <div class="text-xs text-gray-500 mt-1">{{ Str::limit($announcement->message, 80) }}</div>

@@ -55,7 +55,7 @@ const char* TOPIC_TTS_PLAY = "tts/play";
 const char* TOPIC_ANNOUNCEMENT_STATUS = "announcement/status";
 
 // ========== Hardware Configuration ==========
-#define RELAY_COUNT 48
+#define RELAY_COUNT 64
 #define I2C_SDA_PIN 8
 #define I2C_SCL_PIN 9
 #define DFPLAYER_RX_PIN 17
@@ -75,9 +75,10 @@ RTC_DS3231 rtc;
 PCF8575 relayController;
 PCF8575 relayController2;
 PCF8575 relayController3;
+PCF8575 relayController4;
 
 void setupRTC(uint8_t i2cAddress);
-void setupRelayController(uint8_t i2cAddress);
+void setupRelayController(uint8_t i2cAddress, int controllerNumber);
 
 // ========== System State ==========
 struct ActiveSchedule {
@@ -105,11 +106,13 @@ struct SystemState {
   uint16_t relayStates1 = 0xFFFF; 
   uint16_t relayStates2 = 0xFFFF; 
   uint16_t relayStates3 = 0xFFFF;
+  uint16_t relayStates4 = 0xFFFF;
   ActiveSchedule activeSchedules[3]; 
   unsigned long lastI2CCheck = 0;
   bool i2cStable = true;
   int i2cErrorCount = 0;
   unsigned long lastI2CRecovery = 0;
+  bool relayController4Connected = false;
 };
 
 // ========== Global Variables ==========
@@ -178,6 +181,7 @@ void setup() {
   setupRelayController(0x20, 1);  
   setupRelayController(0x21, 2);  
   setupRelayController(0x22, 3);  
+  setupRelayController(0x23, 4);
   // Tetap coba setup RTC dengan scan
   setupRTC(0x68); // Coba address default DS3231 (0x68)
   scanI2CDevices();
@@ -392,6 +396,14 @@ void setupRelayController(uint8_t i2cAddress, int controllerNumber) {
         LOG("Relay controller 3 initialized at 0x" + String(i2cAddress, HEX));
         return;
       }
+    } else if (controllerNumber == 4) {
+      relayController4 = PCF8575(i2cAddress);
+      if (relayController4.begin()) {
+        state.relayController4Connected = true;
+        relayController4.write16(0xFFFF);
+        LOG("Relay controller 4 initialized at 0x" + String(i2cAddress, HEX));
+        return;
+      }
     }
     LOG("PCF8575 " + String(controllerNumber) + " tidak terdeteksi di 0x" + String(i2cAddress, HEX) + 
         ", retrying (" + String(retryCount+1) + "/" + String(maxRetries) + ")");
@@ -405,6 +417,8 @@ void setupRelayController(uint8_t i2cAddress, int controllerNumber) {
     state.relayController2Connected = false;
   } else if (controllerNumber == 3) {
     state.relayController3Connected = false;
+  } else if (controllerNumber == 4) {
+    state.relayController4Connected = false;
   }
   LOG("Gagal menginisialisasi PCF8575 " + String(controllerNumber) + " setelah " + String(maxRetries) + " percobaan");
 }
@@ -790,7 +804,7 @@ void setRelayState(uint8_t relayNum, bool active) {
       byte error = Wire.endTransmission();
       success = (error == 0);
     } 
-    else {
+    else if (relayNum < 48) {
       if (!state.relayController3Connected) break;
       uint8_t pin = relayNum - 32;
       if (active) {
@@ -801,6 +815,20 @@ void setRelayState(uint8_t relayNum, bool active) {
       Wire.beginTransmission(0x22);
       Wire.write(lowByte(state.relayStates3));
       Wire.write(highByte(state.relayStates3));
+      byte error = Wire.endTransmission();
+      success = (error == 0);
+    }
+    else {
+      if (!state.relayController4Connected) break;
+      uint8_t pin = relayNum - 48;
+      if (active) {
+        state.relayStates4 &= ~(1 << pin);
+      } else {
+        state.relayStates4 |= (1 << pin);
+      }
+      Wire.beginTransmission(0x23);
+      Wire.write(lowByte(state.relayStates4));
+      Wire.write(highByte(state.relayStates4));
       byte error = Wire.endTransmission();
       success = (error == 0);
     }
@@ -821,10 +849,12 @@ void setAllRelays(bool active) {
     state.relayStates1 = 0x0000; // Semua relay controller 1 ON
     state.relayStates2 = 0x0000; // Semua relay controller 2 ON 
     state.relayStates3 = 0x0000; // Semua relay controller 3 ON
+    state.relayStates4 = 0x0000; // Semua relay controller 4 ON
   } else {
     state.relayStates1 = 0xFFFF; // Semua relay controller 1 OFF
     state.relayStates2 = 0xFFFF; // Semua relay controller 2 OFF
     state.relayStates3 = 0xFFFF; // Semua relay controller 3 OFF
+    state.relayStates4 = 0xFFFF; // Semua relay controller 4 OFF
   }
 
   // Kirim ke semua controller yang terhubung
@@ -840,6 +870,10 @@ void setAllRelays(bool active) {
     relayController3.write16(state.relayStates3);
     delay(10);
   }
+  if (state.relayController4Connected) {
+    relayController4.write16(state.relayStates4);
+    delay(10);
+  }
 }
 
 void sendRelayStatusUpdate() {
@@ -848,9 +882,16 @@ void sendRelayStatusUpdate() {
   
   JsonArray activeRelays = doc.createNestedArray("active_relays");
   for (int i = 0; i < RELAY_COUNT; i++) {
-    bool isActive = (i < 16) ? 
-                   !(state.relayStates1 & (1 << i)) : 
-                   !(state.relayStates2 & (1 << (i - 16)));
+    bool isActive = false;
+    if (i < 16) {
+      isActive = !(state.relayStates1 & (1 << i));
+    } else if (i < 32) {
+      isActive = !(state.relayStates2 & (1 << (i - 16)));
+    } else if (i < 48) {
+      isActive = !(state.relayStates3 & (1 << (i - 32)));
+    } else {
+      isActive = !(state.relayStates4 & (1 << (i - 48)));
+    }
     if (isActive) activeRelays.add(i);
   }
   

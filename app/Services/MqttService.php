@@ -154,9 +154,19 @@ class MqttService
 
     public function sendRelayControl(string $action, array $ruangans, string $mode = 'manual'): bool
     {
+        // Normalisasi target ruangan menjadi indeks numerik (0-based)
+        $targets = $this->normalizeRoomTargets($ruangans);
+
+        if (empty($targets)) {
+            Log::error('Relay control failed: no valid room targets resolved', [
+                'input' => $ruangans
+            ]);
+            return false;
+        }
+
         $payload = [
             'action' => $action, // 'activate' atau 'deactivate'
-            'ruang' => $ruangans,
+            'ruang' => $targets,
             'mode' => $mode,
             'timestamp' => now()->toDateTimeString()
         ];
@@ -177,8 +187,18 @@ class MqttService
      */
     public function sendTTSAnnouncement(array $ruangans, string $message, string $language = 'id-id'): bool
     {
+        // Normalisasi target ruangan menjadi indeks numerik (0-based)
+        $targets = $this->normalizeRoomTargets($ruangans);
+
+        if (empty($targets)) {
+            Log::error('TTS announcement failed: no valid room targets resolved', [
+                'input' => $ruangans
+            ]);
+            return false;
+        }
+
         $payload = [
-            'ruang' => $ruangans,
+            'ruang' => $targets,
             'teks' => $message,
             'hl' => $language,
             'timestamp' => now()->toDateTimeString()
@@ -222,6 +242,54 @@ class MqttService
         }
 
         return $statuses;
+    }
+
+    /**
+     * Normalize room identifiers (names or indices) to numeric relay indices (0-based).
+     * Accepts inputs like:
+     * - 0, 1, 17, 48 (int or numeric string)
+     * - "01 LAB DKV" (prefix digits)
+     * - "Kelas X Akutansi1" (any digits in the name)
+     * Returns only indices within [0..63].
+     */
+    private function normalizeRoomTargets(array $ruangans): array
+    {
+        $targets = [];
+
+        foreach ($ruangans as $room) {
+            // Already numeric (int or numeric string)
+            if (is_int($room) || (is_string($room) && ctype_digit($room))) {
+                $idx = (int) $room;
+            } else if (is_string($room)) {
+                $idx = null;
+                // Prefer leading number as index (e.g., "01 LAB DKV")
+                if (preg_match('/^\s*(\d{1,2})/', $room, $m)) {
+                    $idx = (int) $m[1];
+                } else if (preg_match('/(\d{1,2})/', $room, $m)) {
+                    // Fallback: any number present (e.g., "XII DKV2")
+                    $idx = (int) $m[1];
+                }
+                if ($idx === null) {
+                    Log::warning('Unable to resolve room index from name', ['room' => $room]);
+                    continue;
+                }
+            } else {
+                Log::warning('Unsupported room identifier type', ['room' => $room]);
+                continue;
+            }
+
+            // Bound check to 0..63 (supports up to 4x PCF8575)
+            if ($idx < 0 || $idx > 63) {
+                Log::warning('Room index out of bounds (0..63 required)', ['index' => $idx, 'room' => $room]);
+                continue;
+            }
+
+            $targets[] = $idx;
+        }
+
+        // Remove duplicates and reindex
+        $targets = array_values(array_unique($targets));
+        return $targets;
     }
 
     protected function handleBellNotification(string $message, string $triggerType): void

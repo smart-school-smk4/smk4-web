@@ -52,7 +52,7 @@
                     <div class="relative">
                         <select name="file_number" id="file_number" required
                                 class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 py-2 px-3 border appearance-none">
-                            @for($i = 1; $i <= 50; $i++)
+                            @for($i = 1; $i <= 30; $i++)
                                 <option value="{{ sprintf('%04d', $i) }}" 
                                     {{ old('file_number', $schedule->file_number) == sprintf('%04d', $i) ? 'selected' : '' }}>
                                     File {{ sprintf('%04d', $i) }}

@@ -102,12 +102,12 @@
             <li class="mb-2">
                 <button
                     class="dropdown-btn w-full text-left p-2 bg-gray-100 rounded-lg flex justify-between items-center"
-                    data-dropdown="presensi">
+                    data-dropdown="bel-pengumuman">
                     <span class="flex items-center">
                         <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"
                             xmlns="http://www.w3.org/2000/svg">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M5 12h14M12 5l7 7-7 7"></path>
+                                d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                         </svg>
                         Bel & Pengumuman
                     </span>
@@ -118,10 +118,10 @@
                 </button>
                 <ul class="dropdown hidden mt-2 ml-5 space-y-2">
                     <li><a href="{{ route('bel.index') }}"
-                            class="block p-2 rounded-lg {{ request()->is('admin/bel') ? 'bg-blue-100 text-blue-600' : 'bg-gray-50 text-gray-800' }}">Bel</a>
+                            class="block p-2 rounded-lg {{ request()->is('admin/bel*') ? 'bg-blue-100 text-blue-600' : 'bg-gray-50 text-gray-800' }}">Bel</a>
                     </li>
                     <li><a href="{{ route('admin.announcement.index') }}"
-                            class="block p-2 rounded-lg {{ request()->is('admin/pengumuman') ? 'bg-blue-100 text-blue-600' : 'bg-gray-50 text-gray-800' }}">Pengumuman</a>
+                            class="block p-2 rounded-lg {{ request()->is('admin/announcement*') ? 'bg-blue-100 text-blue-600' : 'bg-gray-50 text-gray-800' }}">Pengumuman</a>
                     </li>
                 </ul>
             </li>

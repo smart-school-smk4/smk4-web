@@ -7,7 +7,7 @@ return [
 
     'connections' => [
         'bel_sekolah' => [
-            'host' => env('MQTT_HOST', '192.168.1.5'),
+            'host' => env('MQTT_HOST', 'test.mosquitto.org'),
             'port' => (int) env('MQTT_PORT', 1883),
             'client_id' => env('MQTT_CLIENT_ID', 'laravel_bel_' . bin2hex(random_bytes(4))),
             'use_clean_session' => false,

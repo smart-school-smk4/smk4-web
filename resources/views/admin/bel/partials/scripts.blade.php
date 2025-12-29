@@ -273,43 +273,49 @@ function deactivateAll() {
 // Ring bell modal
 function showRingModal() {
     Swal.fire({
-        title: 'Manual Bell Ring',
+        title: '<div class="flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mr-3 text-yellow-500" viewBox="0 0 20 20" fill="currentColor"><path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z" /></svg><span class="text-2xl font-bold bg-gradient-to-r from-yellow-600 to-orange-600 bg-clip-text text-transparent">Bunyikan Bel Manual</span></div>',
         html: `
-            <div class="text-left">
+            <div class="text-left bg-gradient-to-br from-yellow-50 to-orange-50 p-6 rounded-xl">
+                <div class="mb-2 text-center">
+                    <p class="text-gray-600 text-sm mb-4">Pilih file audio yang akan diputar pada speaker</p>
+                </div>
                 <div class="mb-4">
-                    <label for="swal-file-number" class="block text-sm font-medium text-gray-700 mb-1">Sound File</label>
-                    <select id="swal-file-number" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 py-2 text-sm">
-                        <option value="">Select Sound File</option>
-                        @for($i = 1; $i <= 50; $i++)
-                            <option value="{{ sprintf('%04d', $i) }}">File {{ sprintf('%04d', $i) }}</option>
+                    <label for="swal-file-number" class="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-purple-600" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M18 3a1 1 0 00-1.447-.894L8.763 6H5a3 3 0 000 6h.28l1.771 5.316A1 1 0 008 18h1a1 1 0 001-1v-4.382l6.553 3.276A1 1 0 0018 15V3z" />
+                        </svg>
+                        Sound File
+                    </label>
+                    <select id="swal-file-number" class="mt-1 block w-full rounded-lg border-2 border-purple-300 shadow-sm focus:border-purple-500 focus:ring-2 focus:ring-purple-500 py-3 px-4 text-base font-medium bg-white hover:border-purple-400 transition duration-200">
+                        <option value="" class="text-gray-500">🎵 Pilih File Audio...</option>
+                        @for($i = 1; $i <= 30; $i++)
+                            <option value="{{ sprintf('%04d', $i) }}">🔊 File {{ sprintf('%04d', $i) }}</option>
                         @endfor
                     </select>
                 </div>
-                <div class="mb-4">
-                    <label for="swal-volume" class="block text-sm font-medium text-gray-700 mb-1">Volume (1-30)</label>
-                    <input type="number" id="swal-volume" min="1" max="30" value="20" 
-                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 py-2 text-sm">
-                </div>
+                
             </div>
         `,
         showCancelButton: true,
-        confirmButtonText: 'Ring Bell',
-        cancelButtonText: 'Cancel',
+        confirmButtonText: '<span class="flex items-center"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z" /></svg>Bunyikan Bel</span>',
+        cancelButtonText: '<span class="flex items-center"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>Batal</span>',
+        confirmButtonColor: '#F59E0B',
+        cancelButtonColor: '#6B7280',
         focusConfirm: false,
+        customClass: {
+            popup: 'rounded-2xl shadow-2xl',
+            confirmButton: 'rounded-lg px-6 py-3 font-semibold shadow-lg hover:shadow-xl transition duration-200',
+            cancelButton: 'rounded-lg px-6 py-3 font-semibold shadow hover:shadow-lg transition duration-200'
+        },
         preConfirm: () => {
             const fileNumber = document.getElementById('swal-file-number').value;
-            const volume = document.getElementById('swal-volume').value;
             
             if (!fileNumber) {
-                Swal.showValidationMessage('Pilih File');
-                return false;
-            }
-            if (volume < 1 || volume > 30) {
-                Swal.showValidationMessage('Volume Antar 1 - 30');
+                Swal.showValidationMessage('⚠️ Silahkan pilih file audio terlebih dahulu');
                 return false;
             }
             
-            return { file_number: fileNumber, volume: volume };
+            return { file_number: fileNumber, volume: 20 };
         }
     }).then((result) => {
         if (result.isConfirmed) {
@@ -320,7 +326,19 @@ function showRingModal() {
 
 // Ring bell function
 function ringBell(fileNumber, volume = 15) {
-    showLoading('Ringing bell...');
+    Swal.fire({
+        title: '<div class="flex flex-col items-center"><div class="animate-bounce mb-3"><svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-yellow-500" viewBox="0 0 20 20" fill="currentColor"><path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z" /></svg></div><span class="text-xl font-bold text-gray-800">Membunyikan Bel...</span></div>',
+        html: '<div class="text-center"><p class="text-gray-600 mb-3">Mengirim perintah ke ESP32 </p><div class="flex justify-center items-center space-x-1"><div class="w-3 h-3 bg-yellow-500 rounded-full animate-pulse" style="animation-delay: 0s"></div><div class="w-3 h-3 bg-yellow-500 rounded-full animate-pulse" style="animation-delay: 0.2s"></div><div class="w-3 h-3 bg-yellow-500 rounded-full animate-pulse" style="animation-delay: 0.4s"></div></div></div>',
+        allowOutsideClick: false,
+        showConfirmButton: false,
+        customClass: {
+            popup: 'rounded-2xl shadow-2xl'
+        },
+        didOpen: () => {
+            Swal.showLoading();
+        }
+    });
+    
     fetch("{{ route('api.bel.ring') }}", {
         method: 'POST',
         headers: {
@@ -335,25 +353,57 @@ function ringBell(fileNumber, volume = 15) {
     })
     .then(response => response.json())
     .then(data => {
-        Swal.close();
         if (data.success) {
-            showToast('success', 'Bel Berhasil Di Bunyikan');
+            Swal.fire({
+                icon: 'success',
+                title: '<span class="text-green-600">Berhasil!</span>',
+                html: '<p class="text-gray-700 text-lg">🔔 Bel sedang dibunyikan</p>',
+                timer: 2000,
+                showConfirmButton: false,
+                customClass: {
+                    popup: 'rounded-2xl shadow-2xl'
+                }
+            });
         } else {
-            showToast('error', data.message || 'Bel Gagal Di Bunyikan');
+            Swal.fire({
+                icon: 'error',
+                title: 'Gagal Membunyikan Bel',
+                text: data.message || 'Terjadi kesalahan',
+                confirmButtonColor: '#EF4444',
+                customClass: {
+                    popup: 'rounded-2xl shadow-2xl'
+                }
+            });
         }
     })
     .catch(error => {
         Swal.fire({
             icon: 'error',
             title: 'Error',
-            text: error.message
+            text: error.message,
+            confirmButtonColor: '#EF4444',
+            customClass: {
+                popup: 'rounded-2xl shadow-2xl'
+            }
         });
     });
 }
 
 // Sync schedules function
 function syncSchedules() {
-    showLoading('Sinkronasi Jadwal Bel Dengan Device...');
+    Swal.fire({
+        title: '<div class="flex flex-col items-center"><div class="mb-3"><svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-green-500 animate-spin" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd" /></svg></div><span class="text-xl font-bold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent">Sinkronisasi Jadwal</span></div>',
+        html: '<div class="text-center"><p class="text-gray-600 mb-4">Mengirim jadwal ke ESP32 ...</p><div class="flex justify-center items-center space-x-2"><div class="w-2 h-2 bg-green-500 rounded-full animate-bounce" style="animation-delay: 0s"></div><div class="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style="animation-delay: 0.1s"></div><div class="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style="animation-delay: 0.2s"></div><div class="w-2 h-2 bg-pink-500 rounded-full animate-bounce" style="animation-delay: 0.3s"></div></div></div>',
+        allowOutsideClick: false,
+        showConfirmButton: false,
+        customClass: {
+            popup: 'rounded-2xl shadow-2xl'
+        },
+        didOpen: () => {
+            Swal.showLoading();
+        }
+    });
+    
     fetch("{{ route('api.bel.sync') }}", {
         method: 'POST',
         headers: {
@@ -363,18 +413,38 @@ function syncSchedules() {
     })
     .then(response => response.json())
     .then(data => {
-        Swal.close();
         if (data.success) {
-            showToast('success', data.message || 'Sinkronisasi Jadwal Berhasil');
+            Swal.fire({
+                icon: 'success',
+                title: '<span class="text-green-600">Sinkronisasi Berhasil!</span>',
+                html: '<p class="text-gray-700">✅ Jadwal telah diperbarui ke device</p>',
+                timer: 2500,
+                showConfirmButton: false,
+                customClass: {
+                    popup: 'rounded-2xl shadow-2xl'
+                }
+            });
         } else {
-            showToast('error', data.message || 'Sinkronisasi Jadwal Gagal');
+            Swal.fire({
+                icon: 'error',
+                title: 'Sinkronisasi Gagal',
+                text: data.message || 'Terjadi kesalahan',
+                confirmButtonColor: '#EF4444',
+                customClass: {
+                    popup: 'rounded-2xl shadow-2xl'
+                }
+            });
         }
     })
     .catch(error => {
         Swal.fire({
             icon: 'error',
             title: 'Error',
-            text: error.message
+            text: error.message,
+            confirmButtonColor: '#EF4444',
+            customClass: {
+                popup: 'rounded-2xl shadow-2xl'
+            }
         });
     });
 }

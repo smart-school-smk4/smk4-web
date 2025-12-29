@@ -9,10 +9,6 @@
         <div>
             <div class="flex items-center mb-2">
                 <h1 class="text-3xl font-bold text-gray-800">Sistem Pengumuman Sekolah</h1>
-                <span class="ml-3 px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 flex items-center">
-                    <span class="w-2 h-2 rounded-full bg-blue-500 mr-2"></span>
-                    LIVE CONTROL
-                </span>
             </div>
             <p class="text-gray-600">Kelola pengumuman TTS untuk seluruh ruangan sekolah</p>
             

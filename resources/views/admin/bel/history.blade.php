@@ -149,61 +149,74 @@
     <div class="bg-white rounded-xl shadow-lg overflow-hidden transition-all duration-300 hover:shadow-xl">
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
+                <thead class="bg-gradient-to-r from-indigo-50 via-purple-50 to-pink-50">
                     <tr>
-                        <th scope="col" class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Waktu Bel</th>
-                        <th scope="col" class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hari</th>
-                        <th scope="col" class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">File</th>
-                        <th scope="col" class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trigger</th>
-                        <th scope="col" class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Volume</th>
-                        <th scope="col" class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Repeat</th>
-                        <th scope="col" class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
+                        <th scope="col" class="px-4 py-4 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider w-16">No</th>
+                        <th scope="col" class="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Waktu Bel</th>
+                        <th scope="col" class="px-6 py-4 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">Hari</th>
+                        <th scope="col" class="px-6 py-4 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">File Audio</th>
+                        <th scope="col" class="px-6 py-4 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">Trigger</th>
+                        <th scope="col" class="px-6 py-4 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider w-32">Aksi</th>
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
-                    @forelse($histories as $history)
-                    <tr class="hover:bg-gray-50 transition duration-150 group">
+                    @forelse($histories as $index => $history)
+                    <tr class="hover:bg-indigo-50 transition duration-200 group">
+                        <td class="px-4 py-4 whitespace-nowrap text-center">
+                            <span class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-indigo-100 to-purple-100 text-indigo-700 text-sm font-bold shadow-sm">
+                                {{ $histories->firstItem() + $index }}
+                            </span>
+                        </td>
                         <td class="px-6 py-4 whitespace-nowrap">
                             <div class="flex items-center">
-                                <div class="flex-shrink-0 h-10 w-10 flex items-center justify-center rounded-full bg-blue-50 text-blue-600 mr-3">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <div class="flex-shrink-0 h-11 w-11 flex items-center justify-center rounded-xl bg-gradient-to-br from-blue-100 to-cyan-100 text-blue-600 mr-3 shadow-sm group-hover:shadow-md transition-shadow duration-200">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
                                         <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" />
                                     </svg>
                                 </div>
                                 <div>
-                                    <div class="text-sm font-medium text-gray-900">{{ $history->ring_time->format('d M Y') }}</div>
-                                    <div class="text-sm text-gray-500">{{ $history->ring_time->format('H:i:s') }}</div>
+                                    <div class="text-sm font-semibold text-gray-900">{{ $history->ring_time->format('d M Y') }}</div>
+                                    <div class="text-sm font-medium text-indigo-600">{{ $history->ring_time->format('H:i:s') }}</div>
                                 </div>
                             </div>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                        <td class="px-6 py-4 whitespace-nowrap text-center">
+                            <span class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold bg-gradient-to-r from-gray-100 to-gray-200 text-gray-800 shadow-sm border border-gray-300">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1.5" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd" />
+                                </svg>
                                 {{ $history->hari }}
                             </span>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-mono font-medium text-indigo-600">
-                            {{ $history->file_number }}
+                        <td class="px-6 py-4 whitespace-nowrap text-center">
+                            <div class="inline-flex items-center px-3 py-2 rounded-lg bg-gradient-to-r from-purple-100 to-pink-100 border border-purple-200 shadow-sm">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-purple-600" viewBox="0 0 20 20" fill="currentColor">
+                                    <path d="M18 3a1 1 0 00-1.447-.894L8.763 6H5a3 3 0 000 6h.28l1.771 5.316A1 1 0 008 18h1a1 1 0 001-1v-4.382l6.553 3.276A1 1 0 0018 15V3z" />
+                                </svg>
+                                <span class="text-sm font-bold text-purple-700">{{ $history->file_number }}</span>
+                            </div>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full 
-                                {{ $history->trigger_type == 'schedule' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800' }}">
+                        <td class="px-6 py-4 whitespace-nowrap text-center">
+                            <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold shadow-sm
+                                {{ $history->trigger_type == 'schedule' ? 'bg-gradient-to-r from-green-100 to-emerald-100 text-green-700 border border-green-300' : 'bg-gradient-to-r from-blue-100 to-cyan-100 text-blue-700 border border-blue-300' }}">
+                                @if($history->trigger_type == 'schedule')
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1.5" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd" />
+                                    </svg>
+                                @else
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1.5" viewBox="0 0 20 20" fill="currentColor">
+                                        <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                                    </svg>
+                                @endif
                                 {{ ucfirst($history->trigger_type) }}
                             </span>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="flex text-center">
-                                <span class="text-sm font-medium text-gray-700">{{ $history->volume }}%</span>
-                            </div>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
-                            <span class="px-2 py-1 bg-gray-100 rounded-md">{{ $history->repeat }}x</span>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <td class="px-6 py-4 whitespace-nowrap text-center">
                             <form action="{{ route('bel.history.destroy', $history->id) }}" method="POST" class="inline delete-form">
                                 @csrf
                                 @method('DELETE')
-                                <button type="submit" class="text-red-600 hover:text-red-900 flex items-center group-hover:animate-pulse">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                                <button type="submit" class="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-gradient-to-r from-red-100 to-pink-100 text-red-700 hover:from-red-200 hover:to-pink-200 border border-red-300 font-semibold text-sm shadow-sm hover:shadow-md transition-all duration-200">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1.5" viewBox="0 0 20 20" fill="currentColor">
                                         <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
                                     </svg>
                                     Hapus
@@ -213,7 +226,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="7" class="px-6 py-12 text-center">
+                        <td colspan="6" class="px-6 py-12 text-center">
                             <div class="flex flex-col items-center justify-center">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />

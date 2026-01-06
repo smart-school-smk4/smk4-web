@@ -17,17 +17,32 @@ class AbsensiApiController extends Controller
     public function store(Request $request)
     {
         try {
-            Log::info('Received attendance data:', $request->all());
+            // Log raw request untuk debugging
+            Log::info('=== ABSENSI REQUEST START ===');
+            Log::info('Request Method: ' . $request->method());
+            Log::info('Request URL: ' . $request->fullUrl());
+            Log::info('Request Headers: ', $request->headers->all());
+            Log::info('Request Body: ', $request->all());
+            Log::info('Raw Input: ' . $request->getContent());
 
+            // Support kedua format: id_devices (dari Python) dan devices_id (legacy)
             $request->validate([
                 'id_siswa'   => 'required|integer|exists:siswa,id',
-                'devices_id' => 'required|integer|exists:devices,id',
+                'id_devices' => 'required_without:devices_id|integer|exists:devices,id',
+                'devices_id' => 'required_without:id_devices|integer|exists:devices,id',
                 'type'       => 'sometimes|string|in:masuk,keluar',
             ]);
 
             $siswaId   = $request->id_siswa;
-            $devicesId = $request->devices_id;
+            // Support kedua format field device ID
+            $devicesId = $request->id_devices ?? $request->devices_id;
             $type      = $request->type ?? 'masuk'; // Default ke masuk jika tidak ada type
+            
+            Log::info('Validated Data:', [
+                'siswa_id' => $siswaId,
+                'devices_id' => $devicesId,
+                'type' => $type
+            ]);
             $tanggal   = Carbon::today();
             $now       = Carbon::now();
 
@@ -53,7 +68,7 @@ class AbsensiApiController extends Controller
 
                     Log::info('New attendance record created:', $absensi->toArray());
 
-                    return response()->json([
+                    $response = response()->json([
                         'success' => true,
                         'message' => 'Absensi masuk berhasil dicatat',
                         'data'    => [
@@ -63,6 +78,11 @@ class AbsensiApiController extends Controller
                             'status'      => $absensi->status,
                         ],
                     ]);
+                    
+                    Log::info('=== ABSENSI SUCCESS ===');
+                    Log::info('Response: ', $response->getData(true));
+                    
+                    return $response;
                 } else {
                     // Tidak bisa absen keluar tanpa absen masuk
                     return response()->json([
@@ -142,15 +162,19 @@ class AbsensiApiController extends Controller
             }
 
         } catch (\Illuminate\Validation\ValidationException $e) {
-            Log::error('Validation error:', $e->errors());
+            Log::error('=== VALIDATION ERROR ===');
+            Log::error('Validation errors:', $e->errors());
             return response()->json([
                 'success' => false,
                 'message' => 'Data tidak valid',
                 'errors'  => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
+            Log::error('=== SERVER ERROR ===');
             Log::error('Error storing attendance:', [
                 'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
                 'trace'   => $e->getTraceAsString(),
             ]);
 

@@ -21,16 +21,16 @@
         </div>
     @endif
 
-    <!-- Kontrol Mode Device -->
+    <!-- Status Mode Device (Display Only - Otomatis) -->
     <div class="mb-6 overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg shadow-lg border border-blue-200">
         <div class="bg-gradient-to-r from-blue-500 to-indigo-600 px-6 py-4">
             <h2 class="text-xl font-bold text-white flex items-center">
                 <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                 </svg>
-                Kontrol Mode Absensi Device
+                Status Mode Absensi Device
             </h2>
-            <p class="text-blue-100 text-sm mt-1">Atur mode masuk/keluar untuk setiap device face recognition</p>
+            <p class="text-blue-100 text-sm mt-1">Mode otomatis berdasarkan jadwal waktu yang telah diatur</p>
         </div>
         <div class="p-6">
             @if($devices->count() > 0)
@@ -44,19 +44,13 @@
                             </div>
                             <span class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">{{ $device->ip_address }}</span>
                         </div>
-                        <div class="flex space-x-2">
-                            <button onclick="setDeviceMode({{ $device->id }}, 'masuk')" class="flex-1 flex items-center justify-center px-3 py-2 text-sm font-semibold text-white bg-green-500 rounded-md hover:bg-green-600 transition shadow-sm">
-                                <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 1.414L10.586 9H7a1 1 0 100 2h3.586l-1.293 1.293a1 1 0 101.414 1.414l3-3a1 1 0 000-1.414z" clip-rule="evenodd"></path>
+                        <div class="flex items-center justify-center p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg" id="device-status-{{ $device->id }}">
+                            <div class="flex items-center gap-2">
+                                <svg class="w-5 h-5 text-blue-600 animate-pulse" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"></path>
                                 </svg>
-                                MASUK
-                            </button>
-                            <button onclick="setDeviceMode({{ $device->id }}, 'keluar')" class="flex-1 flex items-center justify-center px-3 py-2 text-sm font-semibold text-white bg-red-500 rounded-md hover:bg-red-600 transition shadow-sm">
-                                <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 1.414L10.586 9H7a1 1 0 100 2h3.586l-1.293 1.293a1 1 0 101.414 1.414l3-3a1 1 0 000-1.414z" clip-rule="evenodd" transform="rotate(180 10 10)"></path>
-                                </svg>
-                                KELUAR
-                            </button>
+                                <span class="text-sm font-semibold text-gray-700">Memuat status...</span>
+                            </div>
                         </div>
                     </div>
                     @endforeach
@@ -125,39 +119,60 @@
 // CSRF Token untuk request Laravel
 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
 
-function setDeviceMode(deviceId, mode) {
-    // Show loading toast
-    showToast('⏳ Mengubah mode device...', 'info');
-    
-    // Panggil Laravel API yang akan forward ke Flask
-    // Gunakan URL relatif agar mengikuti protokol halaman (https/http)
-    fetch('{{ route("admin.setting_presensi.setDeviceMode", [], false) }}', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': csrfToken,
-            'Accept': 'application/json'
-        },
-        body: JSON.stringify({
-            device_id: deviceId,
-            mode: mode
+// Update status mode untuk semua device
+function updateDeviceStatus() {
+    @foreach($devices as $device)
+        fetch('/api/devices/{{ $device->id }}/mode', {
+            headers: {
+                'Accept': 'application/json'
+            }
         })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showToast(`✅ ${data.message}`, 'success');
-            console.log('Mode changed:', data);
-        } else {
-            showToast(`❌ ${data.message}`, 'error');
-            console.error('Error:', data);
-        }
-    })
-    .catch(error => {
-        showToast('❌ Gagal terhubung ke device. Pastikan Flask API aktif.', 'error');
-        console.error('Fetch error:', error);
-    });
+        .then(response => response.json())
+        .then(data => {
+            const statusDiv = document.getElementById('device-status-{{ $device->id }}');
+            if (data.success && statusDiv) {
+                const mode = data.mode;
+                const source = data.source || 'auto';
+                const isManual = source === 'manual';
+                
+                let icon, color, text, bgColor;
+                if (mode === 'masuk') {
+                    icon = '<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 1.414L10.586 9H7a1 1 0 100 2h3.586l-1.293 1.293a1 1 0 101.414 1.414l3-3a1 1 0 000-1.414z" clip-rule="evenodd"></path>';
+                    color = 'text-green-600';
+                    bgColor = 'from-green-50 to-green-100';
+                    text = 'MODE MASUK';
+                } else {
+                    icon = '<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 1.414L10.586 9H7a1 1 0 100 2h3.586l-1.293 1.293a1 1 0 101.414 1.414l3-3a1 1 0 000-1.414z" clip-rule="evenodd" transform="rotate(180 10 10)"></path>';
+                    color = 'text-red-600';
+                    bgColor = 'from-red-50 to-red-100';
+                    text = 'MODE KELUAR';
+                }
+                
+                statusDiv.className = `flex flex-col items-center justify-center p-4 bg-gradient-to-r ${bgColor} rounded-lg`;
+                statusDiv.innerHTML = `
+                    <div class="flex items-center gap-2 mb-1">
+                        <svg class="w-6 h-6 ${color}" fill="currentColor" viewBox="0 0 20 20">
+                            ${icon}
+                        </svg>
+                        <span class="text-lg font-bold ${color}">${text}</span>
+                    </div>
+                    <span class="text-xs text-gray-500 mt-1">
+                        ${isManual ? '🔧 Manual' : '⏰ Otomatis sesuai jadwal'}
+                    </span>
+                `;
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching device status:', error);
+        });
+    @endforeach
 }
+
+// Update status saat halaman dimuat dan setiap 30 detik
+document.addEventListener('DOMContentLoaded', function() {
+    updateDeviceStatus();
+    setInterval(updateDeviceStatus, 30000); // Update setiap 30 detik
+});
 
 function showToast(message, type = 'info') {
     const toastContainer = document.getElementById('toastContainer');

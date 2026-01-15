@@ -184,14 +184,40 @@ class SettingPresensiController extends Controller
 
         // 2) Fallback auto berdasarkan SettingPresensi (jadwal)
         $setting = SettingPresensi::first();
-        $mode = 'masuk';
+        $mode = 'masuk';  // Default ke masuk
+        
         if ($setting) {
-            $now = Carbon::now('Asia/Jakarta')->format('H:i');
-            if ($setting->waktu_masuk_mulai <= $now && $now < $setting->waktu_masuk_selesai) {
+            $now = Carbon::now('Asia/Jakarta');
+            $currentTime = $now->format('H:i:s');
+            
+            // Parse waktu dari setting (tambahkan :00 jika belum ada detik)
+            $waktuMasukMulai = strlen($setting->waktu_masuk_mulai) <= 5 
+                ? $setting->waktu_masuk_mulai . ':00' 
+                : $setting->waktu_masuk_mulai;
+            $waktuMasukSelesai = strlen($setting->waktu_masuk_selesai) <= 5 
+                ? $setting->waktu_masuk_selesai . ':00' 
+                : $setting->waktu_masuk_selesai;
+            $waktuPulangMulai = strlen($setting->waktu_pulang_mulai) <= 5 
+                ? $setting->waktu_pulang_mulai . ':00' 
+                : $setting->waktu_pulang_mulai;
+            $waktuPulangSelesai = strlen($setting->waktu_pulang_selesai) <= 5 
+                ? $setting->waktu_pulang_selesai . ':00' 
+                : $setting->waktu_pulang_selesai;
+            
+            // Cek apakah waktu sekarang ada di range waktu masuk
+            if ($currentTime >= $waktuMasukMulai && $currentTime <= $waktuMasukSelesai) {
                 $mode = 'masuk';
-            } elseif ($setting->waktu_pulang_mulai <= $now && $now < $setting->waktu_pulang_selesai) {
+            }
+            // Cek apakah waktu sekarang ada di range waktu pulang
+            elseif ($currentTime >= $waktuPulangMulai && $currentTime <= $waktuPulangSelesai) {
                 $mode = 'keluar';
             }
+            // Di luar jam absensi, default ke masuk untuk persiapan
+            else {
+                $mode = 'masuk';
+            }
+            
+            \Log::info("Mode auto detected: {$mode} (current: {$currentTime}, masuk: {$waktuMasukMulai}-{$waktuMasukSelesai}, pulang: {$waktuPulangMulai}-{$waktuPulangSelesai})");
         }
 
         return response()->json([

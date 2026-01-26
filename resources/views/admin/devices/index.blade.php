@@ -25,16 +25,16 @@
 
     <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
         <!-- Header Card -->
-        <div class="bg-gradient-to-br from-blue-600 to-cyan-500 px-8 py-6">
+        <div class="bg-gradient-to-r from-primary-500 to-primary-600 px-8 py-6">
             <div class="flex items-center justify-between">
-                <div>
-                    <h1 class="text-2xl font-bold text-white flex items-center">
+                <div class="text-white">
+                    <h1 class="text-3xl font-bold mb-2 flex items-center">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
                         Manajemen Device
                     </h1>
-                    <p class="text-blue-100 mt-1">Total {{ $devices->total() }} device terpasang</p>
+                    <p class="text-primary-100">Total {{ $devices->total() }} device terpasang</p>
                 </div>
-                <button onclick="openModal('createModal')" class="flex items-center px-4 py-2 bg-white text-blue-600 rounded-lg shadow hover:bg-gray-50 transition">
+                <button onclick="openModal('createModal')" class="bg-white text-primary-600 hover:bg-primary-50 px-6 py-3 rounded-xl font-semibold flex items-center transition duration-200 shadow-lg hover:shadow-xl">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
                     Tambah Device
                 </button>
@@ -43,38 +43,72 @@
 
         <!-- Table Section -->
         <div class="p-6">
-            <div class="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
+            <div class="overflow-hidden rounded-xl border border-gray-200 shadow-md">
                 <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
+                    <thead class="bg-gradient-to-r from-gray-50 to-gray-100">
                         <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Device ID</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nama Device</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">IP Address</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Kelas</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ruangan</th>
-                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Aksi</th>
+                            <th class="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Device ID</th>
+                            <th class="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Nama Device</th>
+                            <th class="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">IP Address</th>
+                            <th class="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Kelas</th>
+                            <th class="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Ruangan</th>
+                            <th class="px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">Aksi</th>
                         </tr>
                     </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
+                    <tbody class="bg-white divide-y divide-gray-100">
                         @forelse($devices as $key => $device)
-                        <tr class="hover:bg-gray-50 transition">
-                            <td class="px-6 py-4 font-mono text-gray-700">{{ $device->id }}</td>
-                            <td class="px-6 py-4 font-medium text-gray-900">{{ $device->nama_device }}</td>
-                            <td class="px-6 py-4 text-gray-500 font-mono">{{ $device->ip_address ?? 'N/A' }}</td>
-                            <td class="px-6 py-4 text-gray-500">{{ $device->kelas->nama_kelas ?? '-' }}</td>
-                            <td class="px-6 py-4 text-gray-500">{{ $device->ruangan->nama_ruangan ?? '-' }}</td>
+                        <tr class="hover:bg-blue-50 transition duration-150">
+                            <td class="px-6 py-4">
+                                <span class="px-3 py-1.5 inline-flex text-xs font-mono font-semibold rounded-lg bg-gray-100 text-gray-700">{{ $device->id }}</span>
+                            </td>
+                            <td class="px-6 py-4">
+                                <div class="flex items-center">
+                                    <div class="flex-shrink-0 h-12 w-12 bg-gradient-to-br from-cyan-100 to-cyan-200 rounded-xl flex items-center justify-center mr-4 shadow-sm">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-cyan-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                                        </svg>
+                                    </div>
+                                    <span class="text-sm font-semibold text-gray-900">{{ $device->nama_device }}</span>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4">
+                                <span class="text-sm font-mono text-gray-600">{{ $device->ip_address ?? 'N/A' }}</span>
+                            </td>
+                            <td class="px-6 py-4">
+                                <span class="px-3 py-1.5 inline-flex text-xs font-semibold rounded-lg bg-blue-100 text-blue-700">{{ $device->kelas->nama_kelas ?? '-' }}</span>
+                            </td>
+                            <td class="px-6 py-4">
+                                <span class="px-3 py-1.5 inline-flex text-xs font-semibold rounded-lg bg-purple-100 text-purple-700">{{ $device->ruangan->nama_ruangan ?? '-' }}</span>
+                            </td>
                             <td class="px-6 py-4 text-right">
                                 <div class="flex justify-end space-x-2">
-                                    <button onclick="openModal('editModal-{{$device->id}}')" class="text-indigo-600 hover:text-indigo-900 p-1">Edit</button>
+                                    <button onclick="openModal('editModal-{{$device->id}}')" 
+                                            class="p-2 text-primary-600 hover:text-primary-700 bg-primary-50 hover:bg-primary-100 rounded-lg transition duration-200"
+                                            title="Edit">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                    </button>
                                     <form id="delete-form-{{ $device->id }}" action="{{ route('admin.devices.destroy', $device->id) }}" method="POST">
                                         @csrf @method('DELETE')
-                                        <button type="button" onclick="confirmDelete('{{ $device->id }}', '{{ $device->nama_device }}')" class="text-red-600 hover:text-red-900 p-1">Hapus</button>
+                                        <button type="button" onclick="confirmDelete('{{ $device->id }}', '{{ $device->nama_device }}')" 
+                                                class="p-2 text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 rounded-lg transition duration-200"
+                                                title="Hapus">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                        </button>
                                     </form>
                                 </div>
                             </td>
                         </tr>
                         @empty
-                        <tr><td colspan="6" class="px-6 py-4 text-center text-gray-500">Belum ada device yang ditambahkan.</td></tr>
+                        <tr>
+                            <td colspan="6" class="px-6 py-12 text-center">
+                                <div class="flex flex-col items-center justify-center">
+                                    <svg class="w-16 h-16 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                                    </svg>
+                                    <p class="text-gray-500 font-medium">Belum ada device yang ditambahkan</p>
+                                </div>
+                            </td>
+                        </tr>
                         @endforelse
                     </tbody>
                 </table>

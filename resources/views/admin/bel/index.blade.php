@@ -296,6 +296,3 @@
 <!-- Include JavaScript -->
 @include('admin.bel.partials.scripts')
 @endsection
-@push('styles')
-    @vite('resources/css/app.css')
-@endpush

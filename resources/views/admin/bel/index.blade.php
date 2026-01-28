@@ -39,7 +39,7 @@
     </div>
 
     <!-- System Status Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
         @include('admin.bel.partials.status-card', [
             'id' => 'mqttCard',
             'icon' => 'M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01',
@@ -47,7 +47,7 @@
             'statusId' => 'mqttStatusText',
             'status' => 'Connected',
             'detailsId' => 'mqttStatusDetails',
-            'details' => 'Terkahir diPerbarui: '.now()->format('H:i:s')
+            'details' => 'Terakhir diperbarui: '.now()->format('H:i:s')
         ])
 
         @include('admin.bel.partials.status-card', [
@@ -85,16 +85,16 @@
 
     <!-- Today's Schedule Section -->
     @if($todaySchedules->count() > 0)
-    <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-8 rounded-r-lg">
-        <div class="flex justify-between items-center mb-3">
-            <h3 class="text-lg font-medium text-blue-800 flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+    <div class="bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-blue-500 p-6 mb-8 rounded-r-xl shadow-sm">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold text-blue-900 flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2" viewBox="0 0 20 20" fill="currentColor">
                     <path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd" />
                 </svg>
-                Today's Schedule ({{ \Carbon\Carbon::now()->isoFormat('dddd, D MMMM YYYY') }})
+                Jadwal Hari Ini ({{ \Carbon\Carbon::now()->isoFormat('dddd, D MMMM YYYY') }})
             </h3>
-            <span class="bg-blue-100 text-blue-800 text-xs px-3 py-1 rounded-full font-medium">
-                {{ $todaySchedules->count() }} {{ $todaySchedules->count() > 1 ? 'Schedules' : 'Schedule' }}
+            <span class="bg-blue-600 text-white text-xs font-semibold px-4 py-1.5 rounded-full shadow-sm">
+                {{ $todaySchedules->count() }} {{ $todaySchedules->count() > 1 ? 'Jadwal' : 'Jadwal' }}
             </span>
         </div>
         
@@ -124,7 +124,7 @@
     <!-- Main Content Section -->
     <div class="bg-white rounded-xl shadow-md overflow-hidden">
         <!-- Table Header with Filters -->
-        <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
+        <div class="px-6 py-5 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-blue-50">
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <!-- Search and Filters -->
                 <form action="{{ route('bel.index') }}" method="GET" class="flex flex-wrap items-center gap-4 w-full md:w-auto">

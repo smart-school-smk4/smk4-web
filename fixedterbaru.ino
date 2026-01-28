@@ -25,7 +25,7 @@
 
 // ========== Server Configuration ==========
 const char* VOICERSS_API_KEY = "90927de8275148d79080facd20fb486c";
-const char* VOICERSS_URL = "http://api.voicerss.org/?key=%s&hl=%s&v=%s&c=WAV&f=22khz_16bit_mono&src=%s";
+const char* VOICERSS_URL = "http://api.voicerss.org/?key=%s&hl=%s&v=%s&c=WAV&f=44khz_16bit_stereo&src=%s";
 
 // ========== Configurable Parameters ==========
 char mqtt_server[40] = "192.168.1.5";
@@ -65,7 +65,7 @@ const char* TOPIC_ANNOUNCEMENT_STATUS = "announcement/status";
 #define I2S_BCK_PIN 12
 #define I2S_WS_PIN 13
 #define I2S_DOUT_PIN 14
-#define SAMPLE_RATE 22050
+#define SAMPLE_RATE 44100
 
 // ========== Hardware Components ==========
 WiFiClient espClient;
@@ -140,16 +140,16 @@ int scheduleCount = 0;
 // Konfigurasi I2S
 i2s_config_t i2s_config = {
     .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_TX),
-    .sample_rate = 22050,
+    .sample_rate = 44100,
     .bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT,
-    .channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT, // Stereo format, walau mono
+    .channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT,
     .communication_format = I2S_COMM_FORMAT_STAND_I2S,
     .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1,
-    .dma_buf_count = 16,           // 8 buffer
-    .dma_buf_len = 512,          // 1024 samples per buffer
-    .use_apll = false,            // Nonaktifkan APLL, gunakan PLL_D2_CLK
-    .tx_desc_auto_clear = true,   // Auto clear TX descriptor
-    .fixed_mclk = 0               // Biarkan kosong untuk clock default
+    .dma_buf_count = 8,
+    .dma_buf_len = 1024,
+    .use_apll = false,
+    .tx_desc_auto_clear = true,
+    .fixed_mclk = 0
 };
 
 i2s_pin_config_t pin_config = {
@@ -459,7 +459,7 @@ void setupI2S() {
     }
 
     // 5. Set clock rate
-    err = i2s_set_clk(I2S_NUM_0, SAMPLE_RATE, I2S_BITS_PER_SAMPLE_16BIT, I2S_CHANNEL_MONO);
+    err = i2s_set_clk(I2S_NUM_0, SAMPLE_RATE, I2S_BITS_PER_SAMPLE_16BIT, I2S_CHANNEL_STEREO);
     if (err != ESP_OK) {
         LOG("Gagal set clock I2S. Error: " + String(err));
         i2s_driver_uninstall(I2S_NUM_0);
@@ -474,10 +474,10 @@ void setupI2S() {
     LOG("Konfigurasi I2S Terbaru:");
     LOG("- Sample Rate: " + String(SAMPLE_RATE) + " Hz");
     LOG("- Bit Depth: 16-bit");
-    LOG("- Channel: Mono");
+    LOG("- Channel: Stereo");
     LOG("- DMA Buffers: " + String(i2s_config.dma_buf_count) + " buffers");
     LOG("- Samples per Buffer: " + String(i2s_config.dma_buf_len));
-    LOG("- Total Buffer Size: " + String(i2s_config.dma_buf_count * i2s_config.dma_buf_len * 2) + " bytes");
+    LOG("- Total Buffer Size: " + String(i2s_config.dma_buf_count * i2s_config.dma_buf_len * 4) + " bytes");
 }
 
 void setupMQTT() {
@@ -1025,14 +1025,14 @@ void playTTS(String text, String language, String voice) {
     i2s_stop(I2S_NUM_0);
     LOG("I2S driver reset");
 
-    i2s_set_clk(I2S_NUM_0, SAMPLE_RATE, I2S_BITS_PER_SAMPLE_16BIT, I2S_CHANNEL_MONO);
+    i2s_set_clk(I2S_NUM_0, SAMPLE_RATE, I2S_BITS_PER_SAMPLE_16BIT, I2S_CHANNEL_STEREO);
     i2s_start(I2S_NUM_0);
     LOG("I2S clock started");
 
     // [3] Download Audio
     String url = "http://api.voicerss.org/?key=" + String(VOICERSS_API_KEY) + 
                 "&hl=" + language + "&v=" + voice + 
-                "&c=WAV&f=22khz_16bit_mono&src=" + urlEncode(text);
+                "&c=WAV&f=44khz_16bit_stereo&src=" + urlEncode(text);
     LOG("Fetching TTS URL: " + url);
 
     HTTPClient http;
@@ -1086,7 +1086,7 @@ void playTTS(String text, String language, String voice) {
     size_t audioSize = contentLength - 44;
     
     // [6] Pre-fill DMA Buffer (SOLUSI UTAMA)
-    size_t prefillSize = 4096; // Isi sebagian buffer DMA terlebih dahulu
+    size_t prefillSize = 8192; // Isi sebagian buffer DMA terlebih dahulu (lebih besar untuk stereo)
     if (audioSize > prefillSize) {
         size_t bytesWritten;
         i2s_write(I2S_NUM_0, audioData, prefillSize, &bytesWritten, portMAX_DELAY);

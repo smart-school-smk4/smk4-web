@@ -5,33 +5,39 @@
 @section('content')
 <div class="container mx-auto px-4 py-8">
     <!-- Header Section -->
-    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+    <div class="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-            <div class="flex items-center mb-2">
-                <h1 class="text-3xl font-bold text-gray-800">Sistem Pengumuman Sekolah</h1>
-            </div>
-            <p class="text-gray-600">Kelola pengumuman TTS untuk seluruh ruangan sekolah</p>
+            <h1 class="text-2xl md:text-3xl font-bold text-gray-800">Sistem Pengumuman Sekolah</h1>
+            <p class="text-sm text-gray-600 mt-1">Kelola pengumuman TTS untuk seluruh ruangan sekolah</p>
             
-            <div class="flex items-center mt-4 space-x-4">
-                <div class="flex items-center">
+            <div class="flex items-center mt-3 gap-4">
+                <div class="flex items-center bg-white px-3 py-1.5 rounded-lg shadow-sm border border-gray-200">
                     <span class="relative flex h-3 w-3 mr-2">
                         <span class="animate-ping absolute inline-flex h-full w-full rounded-full {{ $mqttStatus ? 'bg-green-400' : 'bg-red-400' }} opacity-75"></span>
                         <span class="relative inline-flex rounded-full h-3 w-3 {{ $mqttStatus ? 'bg-green-500' : 'bg-red-500' }}"></span>
                     </span>
                     <span class="text-sm font-medium {{ $mqttStatus ? 'text-green-700' : 'text-red-700' }}">
-                        MQTT: {{ $mqttStatus ? 'Connected' : 'Disconnected' }}
+                        {{ $mqttStatus ? 'Connected' : 'Disconnected' }}
                     </span>
                 </div>
-                <div class="flex items-center text-sm text-gray-600">
-                    <i class="fas fa-door-open mr-2 text-blue-500"></i> 
-                    <span class="font-medium">{{ $ruangans->count() }}</span> Ruangan Terdaftar
+                <div class="flex items-center text-sm text-gray-600 bg-white px-3 py-1.5 rounded-lg shadow-sm border border-gray-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                    </svg>
+                    <span class="font-semibold">{{ $ruangans->count() }}</span><span class="ml-1">Ruangan</span>
                 </div>
             </div>
         </div>
-        <a href="{{ route('admin.announcement.history') }}" 
-           class="flex items-center px-5 py-2.5 bg-white border border-blue-500 text-blue-600 rounded-lg hover:bg-blue-50 transition-all duration-200 shadow-sm hover:shadow-md">
-            <i class="fas fa-history mr-2"></i> Riwayat Pengumuman
-        </a>
+        
+        <div class="flex flex-wrap gap-3">
+            <a href="{{ route('admin.announcement.history') }}" 
+               class="inline-flex items-center px-4 py-2 bg-purple-600 border border-transparent rounded-lg font-semibold text-xs text-white uppercase tracking-widest hover:bg-purple-700 focus:bg-purple-700 active:bg-purple-900 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition ease-in-out duration-150 shadow-sm">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" />
+                </svg>
+                Riwayat
+            </a>
+        </div>
     </div>
 
     <!-- Main Card -->

@@ -5,103 +5,98 @@
 @section('content')
 <div class="container mx-auto px-4 py-8">
     <!-- Header Section -->
-    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
+    <div class="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-            <h1 class="text-2xl font-bold text-gray-800">Riwayat Pengumuman</h1>
+            <h1 class="text-2xl md:text-3xl font-bold text-gray-800">Riwayat Pengumuman</h1>
             <p class="text-sm text-gray-600 mt-1">Daftar lengkap pengumuman yang telah dikirim</p>
         </div>
-        <a href="{{ route('admin.announcement.index') }}" 
-           class="flex items-center mt-4 md:mt-0 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors shadow-sm">
-            <i class="fas fa-plus-circle mr-2"></i> Buat Pengumuman Baru
-        </a>
+        
+        <div class="flex flex-wrap gap-3">
+            <a href="{{ route('admin.announcement.index') }}" 
+               class="inline-flex items-center px-4 py-2 bg-green-600 border border-transparent rounded-lg font-semibold text-xs text-white uppercase tracking-widest hover:bg-green-700 focus:bg-green-700 active:bg-green-900 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition ease-in-out duration-150 shadow-sm">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd" />
+                </svg>
+                Buat Baru
+            </a>
+        </div>
     </div>
 
-    <!-- Enhanced Filter Card -->
-    <div class="bg-white rounded-lg shadow-sm border border-gray-200 mb-6 overflow-hidden">
-        <div class="p-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-gray-50">
-            <h2 class="text-lg font-medium text-gray-700 flex items-center">
-                <i class="fas fa-filter mr-2 text-blue-600"></i> Filter Riwayat
+    <!-- Filter Card -->
+    <div class="bg-white rounded-xl shadow-lg border border-gray-100 mb-8 overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-green-50 to-emerald-50">
+            <h2 class="text-lg font-semibold text-gray-800 flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-green-600" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd" />
+                </svg>
+                Filter Riwayat
             </h2>
         </div>
-        <div class="p-4">
-            <form id="filterForm" method="GET" action="{{ route('admin.announcement.history') }}" class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <!-- <div> -->
-                    <!-- <label for="mode" class="block text-sm font-medium text-gray-700 mb-1">Mode Pengumuman</label> -->
-                    <!-- <div class="relative">
-                        <select id="mode" name="mode" class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md border bg-white">
-                            <option value="">Semua Mode</option>
-                            <option value="tts" {{ request('mode') == 'tts' ? 'selected' : '' }}>Text-to-Speech</option>
-                            <option value="manual" {{ request('mode') == 'manual' ? 'selected' : '' }}>Manual</option>
-                        </select>
-                        <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                            <i class="fas fa-caret-down text-gray-400"></i>
-                        </div>
-                    </div> -->
-                <!-- </div> -->
-                <div>
-                    <label for="start_date" class="block text-sm font-medium text-gray-700 mb-1">Dari Tanggal</label>
-                    <div class="relative">
-                        <input type="date" id="start_date" name="start_date" value="{{ request('start_date') }}" 
-                               class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md border bg-white">
-                        <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                            <i class="fas fa-calendar-alt text-gray-400"></i>
-                        </div>
-                    </div>
+        
+        <form id="filterForm" method="GET" action="{{ route('admin.announcement.history') }}" class="p-6">
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+                <!-- Dari Tanggal -->
+                <div class="md:col-span-5">
+                    <label for="start_date" class="block text-sm font-semibold text-gray-700 mb-2">Dari Tanggal</label>
+                    <input type="date" id="start_date" name="start_date" value="{{ request('start_date') }}" 
+                           class="block w-full rounded-lg border-2 border-gray-200 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50 py-3 px-4 transition duration-200 bg-gray-50 hover:bg-white">
                 </div>
-                <div>
-                    <label for="end_date" class="block text-sm font-medium text-gray-700 mb-1">Sampai Tanggal</label>
-                    <div class="relative">
-                        <input type="date" id="end_date" name="end_date" value="{{ request('end_date') }}" 
-                               class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md border bg-white">
-                        <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                            <i class="fas fa-calendar-alt text-gray-400"></i>
-                        </div>
-                    </div>
+                
+                <!-- Sampai Tanggal -->
+                <div class="md:col-span-5">
+                    <label for="end_date" class="block text-sm font-semibold text-gray-700 mb-2">Sampai Tanggal</label>
+                    <input type="date" id="end_date" name="end_date" value="{{ request('end_date') }}" 
+                           class="block w-full rounded-lg border-2 border-gray-200 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200 focus:ring-opacity-50 py-3 px-4 transition duration-200 bg-gray-50 hover:bg-white">
                 </div>
-                <!-- <div class="flex items-end space-x-3">
-                    <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 h-[42px] transition-colors">
-                        <i class="fas fa-search mr-2"></i> Terapkan Filter
+                
+                <!-- Action Buttons -->
+                <div class="md:col-span-2 flex gap-2">
+                    <button type="submit" class="flex-1 inline-flex items-center justify-center px-4 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg font-semibold hover:from-green-700 hover:to-green-800 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all duration-200 shadow-md hover:shadow-lg" title="Terapkan Filter">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" />
+                        </svg>
                     </button>
-                    @if(request()->has('mode') || request()->has('start_date') || request()->has('end_date'))
-                    <a href="{{ route('admin.announcement.history') }}" class="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 h-[42px] transition-colors">
-                        <i class="fas fa-sync-alt mr-2"></i> Reset
+                    @if(request()->has('start_date') || request()->has('end_date'))
+                    <a href="{{ route('admin.announcement.history') }}" class="inline-flex items-center justify-center px-4 py-3 bg-white border-2 border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-all duration-200 shadow-sm hover:shadow" title="Reset Filter">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd" />
+                        </svg>
                     </a>
                     @endif
-                </div> -->
-            </form>
-        </div>
+                </div>
+            </div>
+        </form>
     </div>
 
     <!-- History Table -->
-    <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+    <div class="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gradient-to-r from-blue-50 to-gray-50">
+                <thead class="bg-gradient-to-r from-green-50 to-emerald-50">
                     <tr>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th scope="col" class="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                             Waktu Pengiriman
                         </th>
-                        <!-- <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Mode
-                        </th> -->
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th scope="col" class="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                             Isi Pengumuman
                         </th>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th scope="col" class="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                             Ruangan Tujuan
                         </th>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th scope="col" class="px-6 py-4 text-center text-xs font-bold text-gray-700 uppercase tracking-wider w-32">
                             Aksi
                         </th>
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
                     @forelse($announcements as $announcement)
-                    <tr class="hover:bg-gray-50 transition-colors" data-id="{{ $announcement->id }}">
+                    <tr class="hover:bg-green-50 transition duration-200" data-id="{{ $announcement->id }}">
                         <td class="px-6 py-4 whitespace-nowrap">
                             <div class="flex items-center">
-                                <div class="flex-shrink-0 h-10 w-10 flex items-center justify-center rounded-full bg-blue-50 text-blue-600 mr-3">
-                                    <i class="fas fa-bullhorn"></i>
+                                <div class="flex-shrink-0 h-11 w-11 flex items-center justify-center rounded-xl bg-gradient-to-br from-green-100 to-emerald-100 text-green-600 mr-3 shadow-sm">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
+                                        <path d="M18 3a1 1 0 00-1.447-.894L8.763 6H5a3 3 0 000 6h.28l1.771 5.316A1 1 0 008 18h1a1 1 0 001-1v-4.382l6.553 3.276A1 1 0 0018 15V3z" />
+                                    </svg>
                                 </div>
                                 <div>
                                     <div class="text-sm font-semibold text-gray-900">

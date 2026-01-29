@@ -15,14 +15,14 @@
     @include('admin.component.sidebar')
 
     <!-- Main Content -->
-    <div class="flex-1 ml-64">
+    <div class="flex-1 lg:ml-64 transition-all duration-300">
         <!-- Header -->
-        <div class="fixed top-0 left-64 w-[calc(100%-16rem)] bg-white shadow-sm z-50">
+        <div class="fixed top-0 left-0 lg:left-64 right-0 bg-white shadow-sm z-40">
             @include('admin.component.header')
         </div>
         
         <!-- Content -->
-        <div class="p-6 mt-16">
+        <div class="p-4 sm:p-6 mt-16">
             @yield('content')
         </div>
     </div>

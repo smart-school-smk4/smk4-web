@@ -5,7 +5,7 @@
 <!-- CSS Assets -->
 @if(app()->environment('production'))
     <!-- Production: Use built assets -->
-    <link rel="stylesheet" href="{{ asset('build/assets/app-BNZj-whw.css'') }}">
+    <link rel="stylesheet" href="{{ asset('build/assets/app-BNZj-whw.css') }}">
     <!-- Fallback CDN Tailwind jika assets tidak tersedia -->
     <script src="https://cdn.tailwindcss.com"></script>
 @else

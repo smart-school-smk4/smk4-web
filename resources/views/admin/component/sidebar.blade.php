@@ -1,6 +1,16 @@
 <div class="flex">
+    <!-- Mobile Overlay -->
+    <div id="sidebarOverlay" class="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden hidden"></div>
+    
     <!-- Sidebar -->
-    <div class="w-64 bg-gradient-to-b from-primary-600 to-primary-700 shadow-2xl h-screen p-6 fixed top-0 left-0">
+    <div id="sidebar" class="w-64 bg-gradient-to-b from-primary-600 to-primary-700 shadow-2xl h-screen p-6 fixed top-0 left-0 z-50 transform -translate-x-full lg:translate-x-0 transition-transform duration-300 ease-in-out overflow-y-auto">
+        <!-- Close Button (Mobile Only) -->
+        <button id="closeSidebar" class="lg:hidden absolute top-4 right-4 text-white hover:text-gray-200">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+        </button>
+        
         <!-- Logo & Brand -->
         <div class="flex items-center space-x-3 mb-8 pb-6 border-b border-primary-500">
             <img src="{{ asset('assets/images/logo_smk.svg') }}" alt="Logo" class="w-12 h-12">
@@ -126,11 +136,16 @@
     </div>
 </div>
 
-<!-- JavaScript untuk Dropdown -->
+<!-- JavaScript untuk Dropdown dan Mobile Menu -->
 <script>
     document.addEventListener("DOMContentLoaded", function() {
         const dropdownButtons = document.querySelectorAll(".dropdown-btn");
+        const sidebar = document.getElementById('sidebar');
+        const sidebarOverlay = document.getElementById('sidebarOverlay');
+        const closeSidebar = document.getElementById('closeSidebar');
+        const hamburgerBtn = document.getElementById('hamburgerBtn');
 
+        // Dropdown functionality
         dropdownButtons.forEach((button) => {
             const dropdownMenu = button.nextElementSibling;
             const icon = button.querySelector("svg:last-child");
@@ -159,5 +174,38 @@
                 }
             });
         });
+
+        // Mobile menu toggle
+        function openSidebar() {
+            sidebar.classList.remove('-translate-x-full');
+            sidebarOverlay.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeSidebarFunc() {
+            sidebar.classList.add('-translate-x-full');
+            sidebarOverlay.classList.add('hidden');
+            document.body.style.overflow = '';
+        }
+
+        if (hamburgerBtn) {
+            hamburgerBtn.addEventListener('click', openSidebar);
+        }
+
+        if (closeSidebar) {
+            closeSidebar.addEventListener('click', closeSidebarFunc);
+        }
+
+        if (sidebarOverlay) {
+            sidebarOverlay.addEventListener('click', closeSidebarFunc);
+        }
+
+        // Close sidebar when clicking on a link (mobile only)
+        if (window.innerWidth < 1024) {
+            const sidebarLinks = sidebar.querySelectorAll('a');
+            sidebarLinks.forEach(link => {
+                link.addEventListener('click', closeSidebarFunc);
+            });
+        }
     });
 </script>

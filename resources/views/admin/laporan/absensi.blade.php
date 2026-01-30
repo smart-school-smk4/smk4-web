@@ -234,6 +234,7 @@
                                 <th class="px-6 py-4 text-left text-sm font-semibold">Waktu Masuk</th>
                                 <th class="px-6 py-4 text-left text-sm font-semibold">Waktu Keluar</th>
                                 <th class="px-6 py-4 text-left text-sm font-semibold">Status</th>
+                                <th class="px-6 py-4 text-left text-sm font-semibold">Status Pulang</th>
                                 <th class="px-6 py-4 text-left text-sm font-semibold">Keterangan</th>
                             </tr>
                         </thead>
@@ -291,12 +292,27 @@
                                             </span>
                                         @endif
                                     </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        @if ($data->waktu_keluar)
+                                            <span
+                                                class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                                <i class="fas fa-check-double mr-1"></i>
+                                                Sudah Pulang
+                                            </span>
+                                        @else
+                                            <span
+                                                class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                                                <i class="fas fa-hourglass-half mr-1"></i>
+                                                Belum Pulang
+                                            </span>
+                                        @endif
+                                    </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                         {{ $data->keterangan ?? '-' }}</td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="10" class="px-6 py-12 text-center">
+                                    <td colspan="11" class="px-6 py-12 text-center">
                                         <div class="flex flex-col items-center justify-center">
                                             <i class="fas fa-inbox text-6xl text-gray-300 mb-4"></i>
                                             <h3 class="text-lg font-medium text-gray-900 mb-2">Tidak ada data absensi</h3>

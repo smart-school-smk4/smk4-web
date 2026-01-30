@@ -148,12 +148,13 @@
                                             <th class="px-6 py-4">Waktu Masuk</th>
                                             <th class="px-6 py-4">Waktu Keluar</th>
                                             <th class="px-6 py-4">Ruangan</th>
-                                            <th class="px-6 py-4 rounded-r-lg">Status</th>
+                                            <th class="px-6 py-4">Status</th>
+                                            <th class="px-6 py-4 rounded-r-lg">Status Pulang</th>
                                         </tr>
                                     </thead>
                                     <tbody id="attendance-table-body">
                                         <tr class="animate-pulse">
-                                            <td colspan="8" class="p-8 text-center">
+                                            <td colspan="9" class="p-8 text-center">
                                                 <div class="flex items-center justify-center gap-3 text-gray-500">
                                                     <div
                                                         class="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin">
@@ -330,7 +331,7 @@
                 if (data.length === 0) {
                     tableBody.innerHTML = `
                         <tr>
-                            <td colspan="8" class="p-8 text-center">
+                            <td colspan="9" class="p-8 text-center">
                                 <div class="flex flex-col items-center space-y-3 text-gray-500">
                                     <svg class="w-16 h-16 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
@@ -366,6 +367,17 @@
                             statusBadge =
                                 `<span class="inline-flex items-center px-3 py-1 font-semibold text-sm leading-tight text-red-800 bg-red-100 rounded-full border border-red-200"><svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path></svg>Alpha</span>`;
                     }
+
+                    // Status Pulang Badge
+                    let statusPulangBadge = '';
+                    if (item.status_pulang === 'sudah_pulang') {
+                        statusPulangBadge =
+                            `<span class="inline-flex items-center px-3 py-1 font-semibold text-sm leading-tight text-purple-800 bg-purple-100 rounded-full border border-purple-200"><svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3 3a1 1 0 01-1.414 0l-1.5-1.5a1 1 0 011.414-1.414L10 10.586l2.293-2.293a1 1 0 011.414 1.414z" clip-rule="evenodd"></path></svg>Sudah Pulang</span>`;
+                    } else {
+                        statusPulangBadge =
+                            `<span class="inline-flex items-center px-3 py-1 font-semibold text-sm leading-tight text-orange-800 bg-orange-100 rounded-full border border-orange-200"><svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"></path></svg>Belum Pulang</span>`;
+                    }
+
                     const row = `
                         <tr class="bg-white border-b border-gray-100 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 transition-all duration-200 ${index % 2 === 0 ? 'bg-gray-50/50' : ''}">
                             <td class="px-6 py-4 font-bold text-gray-900">${item.no}</td>
@@ -376,6 +388,7 @@
                             <td class="px-6 py-4 font-mono text-sm text-gray-800">${item.waktu_keluar}</td>
                             <td class="px-6 py-4 text-gray-600">${item.ruangan}</td>
                             <td class="px-6 py-4">${statusBadge}</td>
+                            <td class="px-6 py-4">${statusPulangBadge}</td>
                         </tr>
                     `;
                     tableBody.insertAdjacentHTML('beforeend', row);
@@ -396,7 +409,7 @@
                 clearInterval(fetchInterval);
                 tableBody.innerHTML = `
                     <tr class="animate-pulse">
-                        <td colspan="8" class="p-8 text-center">
+                        <td colspan="9" class="p-8 text-center">
                             <div class="flex items-center justify-center gap-3 text-gray-500">
                                 <div class="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
                                 <span class="text-lg">Memuat data terbaru...</span>

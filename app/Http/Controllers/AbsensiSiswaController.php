@@ -106,6 +106,7 @@ class AbsensiSiswaController extends Controller
                 'waktu_keluar' => $item->waktu_keluar ? Carbon::parse($item->waktu_keluar)->format('H:i:s') : '-',
                 'ruangan'      => $item->devices->nama_device ?? '-',
                 'status'       => $item->status,
+                'status_pulang' => $item->waktu_keluar ? 'sudah_pulang' : 'belum_pulang',
                 'keterangan'   => $item->keterangan ?? '-',
             ];
         });

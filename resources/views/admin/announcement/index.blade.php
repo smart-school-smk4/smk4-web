@@ -3,6 +3,14 @@
 @section('title', 'Pengumuman Sekolah')
 
 @section('content')
+<style>
+.selection-tab.active {
+    font-weight: 600;
+}
+.rotate-180 {
+    transform: rotate(180deg);
+}
+</style>
 <div class="container mx-auto px-4 py-8">
     <!-- Header Section -->
     <div class="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -82,38 +90,119 @@
                     <div class="mb-6">
                         <div class="flex items-center justify-between mb-4">
                             <label class="block text-sm font-medium text-gray-700">Pilih Ruangan <span class="text-red-500">*</span></label>
-                            <button type="button" id="selectAllTTS" class="text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors flex items-center">
-                                <i class="fas fa-check-circle mr-1"></i> Pilih Semua
-                            </button>
+                            <div class="flex items-center gap-2">
+                                <button type="button" id="selectAllTTS" class="text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors flex items-center">
+                                    <i class="fas fa-check-circle mr-1"></i> Pilih Semua
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Selection Mode Tabs -->
+                        <div class="mb-4 border-b border-gray-200">
+                            <nav class="flex -mb-px" aria-label="Tabs">
+                                <button type="button" id="tabByRuangan" class="selection-tab active px-4 py-2 text-sm font-medium border-b-2 border-green-500 text-green-600 hover:text-green-700 transition-colors">
+                                    <i class="fas fa-door-open mr-1"></i> Per Ruangan
+                                </button>
+                                <button type="button" id="tabByJurusan" class="selection-tab px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 transition-colors">
+                                    <i class="fas fa-building mr-1"></i> Per Jurusan
+                                </button>
+                            </nav>
                         </div>
 
                         @php
+                            // Group ruangan berdasarkan jurusan
+                            $ruangansByJurusan = collect($ruangans)->groupBy('jurusan.nama_jurusan')->sortKeys();
+                            
                             // Urutkan ruangan berdasarkan angka dalam nama_ruangan
                             $sortedRuangans = collect($ruangans)->sortBy(function($ruangan) {
                                 preg_match('/\d+/', $ruangan->nama_ruangan, $matches);
-                                return (int) ($matches[0] ?? PHP_INT_MAX); // PHP_INT_MAX agar yang tanpa angka muncul paling akhir
+                                return (int) ($matches[0] ?? PHP_INT_MAX);
                             });
                         @endphp
-                        
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            @foreach($sortedRuangans as $ruangan)
-                                <div class="relative flex items-start p-3 rounded-lg border border-gray-200 hover:border-green-300 transition-colors">
-                                    <div class="flex items-center h-5 mt-1">
-                                        <input id="tts-ruang-{{ $ruangan->nama_ruangan }}" 
-                                            name="ruangans[]" 
-                                            type="checkbox" 
-                                            value="{{ $ruangan->nama_ruangan }}" 
-                                            class="focus:ring-green-500 h-4 w-4 text-green-600 border-gray-300 rounded">
+
+                        <!-- Content Per Ruangan -->
+                        <div id="contentByRuangan" class="selection-content">
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                @foreach($sortedRuangans as $ruangan)
+                                    <div class="relative flex items-start p-3 rounded-lg border border-gray-200 hover:border-green-300 transition-colors">
+                                        <div class="flex items-center h-5 mt-1">
+                                            <input id="tts-ruang-{{ $ruangan->nama_ruangan }}" 
+                                                name="ruangans[]" 
+                                                type="checkbox" 
+                                                value="{{ $ruangan->nama_ruangan }}" 
+                                                class="ruangan-checkbox focus:ring-green-500 h-4 w-4 text-green-600 border-gray-300 rounded"
+                                                data-jurusan="{{ $ruangan->jurusan->nama_jurusan ?? 'Lainnya' }}">
+                                        </div>
+                                        <div class="ml-3 text-sm">
+                                            <label for="tts-ruang-{{ $ruangan->nama_ruangan }}" class="font-medium text-gray-700 flex items-center cursor-pointer">
+                                                <span class="inline-block w-2.5 h-2.5 rounded-full bg-green-500 mr-2"></span>
+                                                {{ $ruangan->nama_ruangan }}
+                                            </label>
+                                            <p class="text-xs text-gray-500 mt-0.5">{{ $ruangan->jurusan->nama_jurusan ?? 'Lainnya' }}</p>
+                                        </div>
                                     </div>
-                                    <div class="ml-3 text-sm">
-                                        <label for="tts-ruang-{{ $ruangan->nama_ruangan }}" class="font-medium text-gray-700 flex items-center">
-                                            <span class="inline-block w-2.5 h-2.5 rounded-full bg-green-500 mr-2"></span>
-                                            Ruangan {{ str_pad($ruangan->nama_ruangan, 2, '0', STR_PAD_LEFT) }}
-                                        </label>
-                                    </div>
-                                </div>
-                            @endforeach
+                                @endforeach
+                            </div>
                         </div>
+
+                        <!-- Content Per Jurusan -->
+                        <div id="contentByJurusan" class="selection-content hidden">
+                            <div class="space-y-4">
+                                @foreach($ruangansByJurusan as $namaJurusan => $ruanganList)
+                                    @php
+                                        $sortedJurusanRuangans = $ruanganList->sortBy(function($ruangan) {
+                                            preg_match('/\d+/', $ruangan->nama_ruangan, $matches);
+                                            return (int) ($matches[0] ?? PHP_INT_MAX);
+                                        });
+                                    @endphp
+                                    <div class="border border-gray-200 rounded-lg overflow-hidden">
+                                        <div class="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 cursor-pointer hover:from-blue-100 hover:to-indigo-100 transition-colors" onclick="toggleJurusan('{{ Str::slug($namaJurusan) }}')">
+                                            <div class="flex items-center justify-between">
+                                                <div class="flex items-center gap-3">
+                                                    <div class="flex items-center h-5">
+                                                        <input id="jurusan-{{ Str::slug($namaJurusan) }}" 
+                                                            type="checkbox" 
+                                                            class="jurusan-checkbox focus:ring-blue-500 h-5 w-5 text-blue-600 border-gray-300 rounded"
+                                                            data-jurusan="{{ $namaJurusan }}"
+                                                            onclick="event.stopPropagation(); selectJurusan('{{ $namaJurusan }}')">
+                                                    </div>
+                                                    <label for="jurusan-{{ Str::slug($namaJurusan) }}" class="font-semibold text-gray-800 flex items-center cursor-pointer" onclick="event.stopPropagation()">
+                                                        <i class="fas fa-graduation-cap mr-2 text-blue-600"></i>
+                                                        {{ $namaJurusan }}
+                                                    </label>
+                                                    <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full font-medium">
+                                                        {{ $sortedJurusanRuangans->count() }} ruangan
+                                                    </span>
+                                                </div>
+                                                <i class="fas fa-chevron-down transition-transform duration-200" id="icon-{{ Str::slug($namaJurusan) }}"></i>
+                                            </div>
+                                        </div>
+                                        <div id="collapse-{{ Str::slug($namaJurusan) }}" class="hidden p-4 bg-white">
+                                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                                @foreach($sortedJurusanRuangans as $ruangan)
+                                                    <div class="flex items-start p-2 rounded border border-gray-100 hover:border-blue-200 hover:bg-blue-50 transition-colors">
+                                                        <div class="flex items-center h-5 mt-0.5">
+                                                            <input id="tts-jurusan-ruang-{{ $ruangan->nama_ruangan }}" 
+                                                                type="checkbox" 
+                                                                value="{{ $ruangan->nama_ruangan }}" 
+                                                                class="ruangan-in-jurusan-checkbox focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded"
+                                                                data-jurusan-group="{{ $namaJurusan }}"
+                                                                onchange="updateJurusanCheckbox('{{ $namaJurusan }}')">
+                                                        </div>
+                                                        <div class="ml-2 text-sm">
+                                                            <label for="tts-jurusan-ruang-{{ $ruangan->nama_ruangan }}" class="font-medium text-gray-700 cursor-pointer">
+                                                                {{ $ruangan->nama_ruangan }}
+                                                            </label>
+                                                        </div>
+                                                    </div>
+                                                @endforeach
+                                            </div>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+
                         <div id="ttsRuanganError" class="mt-2 text-sm text-red-600 hidden flex items-center">
                             <i class="fas fa-exclamation-circle mr-1"></i> Pilih minimal satu ruangan
                         </div>
@@ -137,7 +226,124 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
+// Toggle Jurusan collapse
+function toggleJurusan(slug) {
+    const content = document.getElementById('collapse-' + slug);
+    const icon = document.getElementById('icon-' + slug);
+    
+    if (content.classList.contains('hidden')) {
+        content.classList.remove('hidden');
+        icon.classList.add('rotate-180');
+    } else {
+        content.classList.add('hidden');
+        icon.classList.remove('rotate-180');
+    }
+}
+
+// Select all rooms in a jurusan
+function selectJurusan(namaJurusan) {
+    const jurusanCheckbox = document.querySelector(`input[data-jurusan="${namaJurusan}"].jurusan-checkbox`);
+    const isChecked = jurusanCheckbox.checked;
+    
+    // Get all room checkboxes in this jurusan
+    const roomCheckboxes = document.querySelectorAll(`input[data-jurusan-group="${namaJurusan}"].ruangan-in-jurusan-checkbox`);
+    
+    roomCheckboxes.forEach(checkbox => {
+        checkbox.checked = isChecked;
+    });
+    
+    // Sync to main form checkboxes
+    syncJurusanToRuangan();
+}
+
+// Update jurusan checkbox state based on its rooms
+function updateJurusanCheckbox(namaJurusan) {
+    const roomCheckboxes = document.querySelectorAll(`input[data-jurusan-group="${namaJurusan}"].ruangan-in-jurusan-checkbox`);
+    const jurusanCheckbox = document.querySelector(`input[data-jurusan="${namaJurusan}"].jurusan-checkbox`);
+    
+    const totalRooms = roomCheckboxes.length;
+    const checkedRooms = Array.from(roomCheckboxes).filter(cb => cb.checked).length;
+    
+    if (checkedRooms === 0) {
+        jurusanCheckbox.checked = false;
+        jurusanCheckbox.indeterminate = false;
+    } else if (checkedRooms === totalRooms) {
+        jurusanCheckbox.checked = true;
+        jurusanCheckbox.indeterminate = false;
+    } else {
+        jurusanCheckbox.checked = false;
+        jurusanCheckbox.indeterminate = true;
+    }
+    
+    // Sync to main form checkboxes
+    syncJurusanToRuangan();
+}
+
+// Sync jurusan mode selections to main form
+function syncJurusanToRuangan() {
+    // Clear all main checkboxes first
+    document.querySelectorAll('input[name="ruangans[]"]').forEach(cb => {
+        cb.checked = false;
+    });
+    
+    // Check the ones selected in jurusan mode
+    document.querySelectorAll('.ruangan-in-jurusan-checkbox:checked').forEach(checkbox => {
+        const value = checkbox.value;
+        const mainCheckbox = document.querySelector(`input[name="ruangans[]"][value="${value}"]`);
+        if (mainCheckbox) {
+            mainCheckbox.checked = true;
+        }
+    });
+}
+
+// Sync ruangan mode selections to jurusan mode
+function syncRuanganToJurusan() {
+    // Clear all jurusan checkboxes first
+    document.querySelectorAll('.ruangan-in-jurusan-checkbox').forEach(cb => {
+        cb.checked = false;
+    });
+    
+    // Check the ones selected in ruangan mode
+    document.querySelectorAll('input[name="ruangans[]"]:checked').forEach(checkbox => {
+        const value = checkbox.value;
+        const jurusanCheckbox = document.querySelector(`.ruangan-in-jurusan-checkbox[value="${value}"]`);
+        if (jurusanCheckbox) {
+            jurusanCheckbox.checked = true;
+            const jurusan = jurusanCheckbox.getAttribute('data-jurusan-group');
+            updateJurusanCheckbox(jurusan);
+        }
+    });
+}
+
 $(document).ready(function() {
+    let currentMode = 'ruangan'; // 'ruangan' or 'jurusan'
+    
+    // Tab switching
+    $('#tabByRuangan').click(function() {
+        currentMode = 'ruangan';
+        $('.selection-tab').removeClass('active border-green-500 text-green-600').addClass('border-transparent text-gray-500');
+        $(this).addClass('active border-green-500 text-green-600').removeClass('border-transparent text-gray-500');
+        $('#contentByRuangan').removeClass('hidden');
+        $('#contentByJurusan').addClass('hidden');
+        syncJurusanToRuangan();
+    });
+    
+    $('#tabByJurusan').click(function() {
+        currentMode = 'jurusan';
+        $('.selection-tab').removeClass('active border-green-500 text-green-600').addClass('border-transparent text-gray-500');
+        $(this).addClass('active border-blue-500 text-blue-600').removeClass('border-transparent text-gray-500');
+        $('#contentByJurusan').removeClass('hidden');
+        $('#contentByRuangan').addClass('hidden');
+        syncRuanganToJurusan();
+    });
+    
+    // Sync when ruangan checkboxes change
+    $(document).on('change', '.ruangan-checkbox', function() {
+        if (currentMode === 'ruangan') {
+            syncRuanganToJurusan();
+        }
+    });
+
     // Fungsi untuk membuat selector aman dari karakter khusus
     function getSafeRoomSelector(roomName) {
         return roomName.replace(/[^a-zA-Z0-9-]/g, '-');
@@ -160,11 +366,22 @@ $(document).ready(function() {
 
     // Select all checkboxes
     $('#selectAllTTS').click(function() {
-        const allChecked = $('#ttsTab input[type="checkbox"]').length === $('#ttsTab input[type="checkbox"]:checked').length;
-        $('#ttsTab input[type="checkbox"]').prop('checked', !allChecked);
-        
-        // Update button text
-        $(this).html(`<i class="fas ${!allChecked ? 'fa-check-circle' : 'fa-times-circle'} mr-1"></i> ${!allChecked ? 'Pilih Semua' : 'Batal Pilih'}`);
+        if (currentMode === 'ruangan') {
+            const allChecked = $('.ruangan-checkbox').length === $('.ruangan-checkbox:checked').length;
+            $('.ruangan-checkbox').prop('checked', !allChecked);
+            syncRuanganToJurusan();
+            // Update button text
+            $(this).html(`<i class="fas ${!allChecked ? 'fa-times-circle' : 'fa-check-circle'} mr-1"></i> ${!allChecked ? 'Batal Pilih' : 'Pilih Semua'}`);
+        } else {
+            const allChecked = $('.jurusan-checkbox').length === $('.jurusan-checkbox:checked').length;
+            $('.jurusan-checkbox').prop('checked', !allChecked);
+            $('.jurusan-checkbox').each(function() {
+                const jurusan = $(this).attr('data-jurusan');
+                selectJurusan(jurusan);
+            });
+            // Update button text
+            $(this).html(`<i class="fas ${!allChecked ? 'fa-times-circle' : 'fa-check-circle'} mr-1"></i> ${!allChecked ? 'Batal Pilih' : 'Pilih Semua'}`);
+        }
     });
 
     // Reset forms
@@ -175,6 +392,10 @@ $(document).ready(function() {
         $('#messageError').addClass('hidden');
         $('#ttsRuanganError').addClass('hidden');
         $('#selectAllTTS').html('<i class="fas fa-check-circle mr-1"></i> Pilih Semua');
+        
+        // Reset jurusan checkboxes
+        $('.jurusan-checkbox').prop('checked', false);
+        $('.ruangan-in-jurusan-checkbox').prop('checked', false);
     });
 
     // Form validation and submission

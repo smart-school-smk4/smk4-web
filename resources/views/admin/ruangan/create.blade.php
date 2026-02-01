@@ -69,13 +69,25 @@
                             <input type="text" name="nama_ruangan" id="nama_ruangan" 
                                    class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition duration-300 pl-10"
                                    value="{{ old('nama_ruangan') }}"
-                                   placeholder="Contoh: Ruang 101" required>
+                                   placeholder="Contoh: 1 Lab DKV" required>
                             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                                 </svg>
                             </div>
                         </div>
+                        <p id="nama_ruangan_error" class="mt-2 text-sm text-red-600 hidden flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2h-1V9z" clip-rule="evenodd" />
+                            </svg>
+                            <span id="nama_ruangan_error_text"></span>
+                        </p>
+                        <p class="mt-1 text-xs text-gray-500 flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2h-1V9z" clip-rule="evenodd" />
+                            </svg>
+                            Format: Angka + nama. Contoh: "1 Lab DKV"
+                        </p>
                         @error('nama_ruangan')
                             <p class="mt-2 text-sm text-red-600 flex items-center">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
@@ -191,11 +203,58 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
+// Validasi format nama ruangan real-time
+const namaRuanganInput = document.getElementById('nama_ruangan');
+const namaRuanganError = document.getElementById('nama_ruangan_error');
+const namaRuanganErrorText = document.getElementById('nama_ruangan_error_text');
+
+namaRuanganInput.addEventListener('input', function() {
+    validateNamaRuangan();
+});
+
+function validateNamaRuangan() {
+    const value = namaRuanganInput.value.trim();
+    const pattern = /^\d+\s+/; // Harus diawali dengan angka murni diikuti spasi
+    
+    if (value === '') {
+        namaRuanganError.classList.add('hidden');
+        namaRuanganInput.classList.remove('border-red-500');
+        namaRuanganInput.classList.add('border-gray-300');
+        return false;
+    }
+    
+    if (!pattern.test(value)) {
+        namaRuanganError.classList.remove('hidden');
+        namaRuanganErrorText.textContent = 'Nama ruangan harus diawali dengan angka murni diikuti spasi! Contoh: "1 Lab DKV", "201 Kelas XII"';
+        namaRuanganInput.classList.add('border-red-500');
+        namaRuanganInput.classList.remove('border-gray-300');
+        return false;
+    } else {
+        namaRuanganError.classList.add('hidden');
+        namaRuanganInput.classList.remove('border-red-500');
+        namaRuanganInput.classList.add('border-gray-300');
+        return true;
+    }
+}
+
 function confirmCreate() {
     const form = document.getElementById('createForm');
-    const namaRuangan = document.getElementById('nama_ruangan').value;
+    const namaRuangan = document.getElementById('nama_ruangan').value.trim();
     const kelas = document.getElementById('id_kelas').options[document.getElementById('id_kelas').selectedIndex].text;
     const jurusan = document.getElementById('id_jurusan').options[document.getElementById('id_jurusan').selectedIndex].text;
+
+    // Validasi format nama ruangan
+    if (!validateNamaRuangan()) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Format Nama Ruangan Salah',
+            html: 'Nama ruangan harus diawali dengan angka murni diikuti spasi!<br><br><strong>Contoh yang benar:</strong><br>• 1 Lab DKV<br>• 201 Kelas XII<br>• 10 Ruang Multimedia<br><br><strong>Contoh yang SALAH:</strong><br>✗ 3A Lab (harus: 3 Lab A)<br>✗ Lab 1 (angka harus di depan)',
+            confirmButtonColor: '#3B82F6',
+            iconColor: '#EF4444'
+        });
+        namaRuanganInput.focus();
+        return;
+    }
 
     if (!namaRuangan || !document.getElementById('id_kelas').value || !document.getElementById('id_jurusan').value) {
         Swal.fire({

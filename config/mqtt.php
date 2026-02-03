@@ -14,8 +14,8 @@ return [
             'connection_settings' => [
                 'auto_reconnect' => [
                     'enabled' => true,
-                    'max_reconnect_attempts' => 2,
-                    'delay_between_reconnect_attempts' => 1,
+                    'max_reconnect_attempts' => 10,  // Increased from 2
+                    'delay_between_reconnect_attempts' => 3,  // Increased from 1
                 ],
                 'last_will' => [
                     'topic' => 'bel/sekolah/status/backend',
@@ -23,9 +23,9 @@ return [
                     'quality_of_service' => 1,
                     'retain' => true,
                 ],
-                'connect_timeout' => 5,
-                'socket_timeout' => 5,
-                'keep_alive_interval' => 10, 
+                'connect_timeout' => 10,  // Increased from 5
+                'socket_timeout' => 15,   // Increased from 5
+                'keep_alive_interval' => 60,  // Increased from 10 to match ESP32 
             ],
         ],
     ],

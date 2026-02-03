@@ -30,11 +30,16 @@ class MqttService
     public function __construct()
     {
         $this->config = config('mqtt');
-        $this->initializeConnection();
+        // Lazy connection - don't block on constructor
+        // Connection will be established when needed
     }
 
     protected function initializeConnection(): void
     {
+        if ($this->isConnected) {
+            return; // Already initialized
+        }
+
         try {
             $connectionConfig = $this->getConnectionConfig();
             $this->client = new MqttClient(
@@ -43,12 +48,14 @@ class MqttService
                 $this->generateClientId($connectionConfig)
             );
 
-            $this->connect();
-            $this->subscribeToBellTopics();
-            $this->subscribeToAnnouncementTopics(); // Add announcement subscriptions
+            if ($this->connect()) {
+                $this->subscribeToBellTopics();
+                $this->subscribeToAnnouncementTopics();
+                $this->subscribeToRmsTopics();
+            }
         } catch (\Exception $e) {
-            Log::error('MQTT Initialization failed: ' . $e->getMessage());
-            $this->scheduleReconnect();
+            Log::warning('MQTT Initialization failed (will retry later): ' . $e->getMessage());
+            // Don't block - let it retry on next publish/subscribe call
         }
     }
 
@@ -96,6 +103,62 @@ class MqttService
 
         foreach ($topics as $topic => $callback) {
             $this->subscribe($topic, $callback);
+        }
+    }
+
+    /**
+     * Subscribe to RMS statistics topics
+     */
+    protected function subscribeToRmsTopics(): void
+    {
+        $this->subscribe('smk4/rms/statistics', fn($t, $m) => $this->handleRmsStatistics($m));
+    }
+
+    /**
+     * Handle RMS task statistics from ESP32
+     */
+    protected function handleRmsStatistics(string $message): void
+    {
+        try {
+            $data = json_decode($message, true, 512, JSON_THROW_ON_ERROR);
+            
+            // Validate required fields
+            $validator = Validator::make($data, [
+                'timestamp' => 'required|integer',
+                'total_utilization' => 'required|numeric',
+                'schedulable' => 'required|boolean',
+                'free_heap' => 'required|integer',
+                'tasks' => 'required|array'
+            ]);
+
+            if ($validator->fails()) {
+                Log::warning('Invalid RMS statistics data', ['errors' => $validator->errors()]);
+                return;
+            }
+
+            // Store in database
+            \App\Models\TaskStatistic::create([
+                'boot_timestamp' => $data['timestamp'],
+                'total_utilization' => $data['total_utilization'],
+                'rms_bound' => $data['rms_bound'] ?? 75.6,
+                'schedulable' => $data['schedulable'],
+                'free_heap' => $data['free_heap'],
+                'tasks' => $data['tasks']
+            ]);
+
+            // Store latest in cache for dashboard
+            Cache::put('rms_latest_stats', $data, 120);
+
+            Log::info('RMS statistics stored', [
+                'utilization' => $data['total_utilization'],
+                'schedulable' => $data['schedulable'],
+                'tasks_count' => count($data['tasks'])
+            ]);
+
+        } catch (\JsonException $e) {
+            Log::error('Failed to parse RMS statistics JSON: ' . $e->getMessage());
+        } catch (\Exception $e) {
+            Log::error('Failed to handle RMS statistics: ' . $e->getMessage());
         }
     }
 
@@ -397,6 +460,7 @@ class MqttService
     public function connect(): bool
     {
         if ($this->connectionLock) {
+            Log::debug('MQTT Connection already in progress');
             return false;
         }
 
@@ -408,12 +472,21 @@ class MqttService
                 return true;
             }
 
+            // Check if we should delay reconnect
+            $lastFailed = Cache::get('mqtt_last_failed');
+            if ($lastFailed && (time() - $lastFailed) < 10) {
+                $this->connectionLock = false;
+                return false; // Don't spam reconnect
+            }
+
             $connectionSettings = $this->createConnectionSettings();
             $this->client->connect($connectionSettings, true);
             
             $this->handleSuccessfulConnection();
+            Cache::forget('mqtt_last_failed');
             return true;
         } catch (\Exception $e) {
+            Cache::put('mqtt_last_failed', time(), 60);
             $this->handleConnectionFailure($e);
             return false;
         } finally {
@@ -481,12 +554,17 @@ class MqttService
 
     public function publish(string $topic, string $message, int $qos = 1, bool $retain = false): bool
     {
-        if (!$this->isConnected && !$this->connect()) {
-            $this->queueMessage($topic, $message, $qos, $retain);
-            return false;
-        }
-
         try {
+            // Ensure connection (lazy init)
+            if (!$this->isConnected) {
+                $this->initializeConnection();
+            }
+
+            if (!$this->isConnected && !$this->connect()) {
+                $this->queueMessage($topic, $message, $qos, $retain);
+                return false;
+            }
+
             $this->client->publish($topic, $message, $qos, $retain);
             Log::debug("MQTT Published to {$topic}");
             return true;
@@ -565,13 +643,19 @@ class MqttService
         
         if ($this->reconnectAttempts < $reconnectConfig['max_reconnect_attempts']) {
             $this->reconnectAttempts++;
-            $delay = $reconnectConfig['delay_between_reconnect_attempts'] * $this->reconnectAttempts;
             
-            Log::info("MQTT Reconnect attempt {$this->reconnectAttempts} in {$delay} seconds");
-            sleep($delay);
-            $this->connect();
+            // Exponential backoff: 3s, 6s, 12s, 24s, 48s, max 60s
+            $baseDelay = $reconnectConfig['delay_between_reconnect_attempts'];
+            $delay = min($baseDelay * pow(2, $this->reconnectAttempts - 1), 60);
+            
+            Log::info("MQTT Reconnect scheduled: attempt {$this->reconnectAttempts}/{$reconnectConfig['max_reconnect_attempts']} in {$delay}s");
+            
+            // Store next reconnect time (don't block current request)
+            Cache::put('mqtt_next_reconnect', time() + $delay, 300);
         } else {
-            Log::error('MQTT Max reconnect attempts reached');
+            Log::warning('MQTT Max reconnect attempts reached - will retry on next request');
+            $this->reconnectAttempts = 0; // Reset for next try
+            Cache::put('mqtt_next_reconnect', time() + 60, 300);
         }
     }
 

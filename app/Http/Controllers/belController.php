@@ -455,12 +455,12 @@ class BelController extends Controller
             ->get()
             ->map(function ($item) {
                 return [
-                    'hari' => $item->hari,
-                    'waktu' => Carbon::parse($item->waktu)->format('H:i'), // Ensure "H:i" format
-                    'file_number' => $item->file_number,
-                    'volume' => (int)$item->volume ?? 15, // Force integer type
-                    'repeat' => (int)$item->repeat ?? 1,  // Force integer type
-                    'is_active' => (bool)$item->is_active // Force boolean
+                    'd' => $item->hari,           // hari (day)
+                    't' => Carbon::parse($item->waktu)->format('H:i'), // waktu (time)
+                    'f' => $item->file_number,    // file_number
+                    'v' => (int)$item->volume ?? 15,  // volume
+                    'r' => (int)$item->repeat ?? 1,   // repeat
+                    'a' => (bool)$item->is_active     // is_active
                 ];
             })->toArray();
     }
@@ -468,10 +468,16 @@ class BelController extends Controller
     public function syncSchedule()
     {
         Log::debug('Sync request received from frontend');
+        $schedules = $this->getFormattedSchedules();
+        
+        // Generate checksum untuk deteksi perubahan
+        $checksum = md5(json_encode($schedules));
+        
         $payload = [
-            'action' => 'sync',
-            'timestamp' => now()->toDateTimeString(),
-            'schedules' => $this->getFormattedSchedules()
+            'a' => 'sync',        // action (compressed key)
+            'c' => substr($checksum, 0, 8), // checksum (8 char cukup)
+            'n' => count($schedules),        // count
+            's' => $schedules     // schedules
         ];
     
         $this->mqttService->publish(
@@ -484,7 +490,8 @@ class BelController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Sync command sent',
-            'payload' => $payload // For debugging
+            'count' => count($schedules),
+            'checksum' => substr($checksum, 0, 8)
         ]);
     }
 

@@ -4,7 +4,7 @@ use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\Api\AbsensiApiController;
 use App\Http\Controllers\Api\AbsensiLaporanController;
 use App\Http\Controllers\Api\AbsensiSiswaApiController;
-use App\Http\Controllers\Api\BellController;
+use App\Http\Controllers\Api\BellController as ApiBellController;
 use App\Http\Controllers\Api\DevicesApiController;
 use App\Http\Controllers\Api\DeviceStudentController;
 use App\Http\Controllers\Api\SiswaApiController;
@@ -13,13 +13,13 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\SettingPresensiController;
 
 Route::prefix('bel')->group(function () {
-    Route::post('/ring', [BelController::class, 'ring'])->name('api.bel.ring');
-    Route::post('/sync', [BelController::class, 'syncSchedule'])->name('api.bel.sync');
-    Route::get('/status', [BelController::class, 'status'])->name('api.bel.status');
-    Route::get('/next-schedule', [BelController::class, 'getNextSchedule'])->name('api.bel.next-schedule');
-    Route::put('/{id}/toggle-status', [BelController::class, 'toggleStatus'])->name('api.bel.toggle-status');
-    Route::post('/activate-all', [BelController::class, 'activateAll'])->name('api.bel.activate-all');
-    Route::post('/deactivate-all', [BelController::class, 'deactivateAll'])->name('api.bel.deactivate-all');
+    Route::post('/ring', [belController::class, 'ring'])->name('api.bel.ring');
+    Route::post('/sync', [belController::class, 'syncSchedule'])->name('api.bel.sync');
+    Route::get('/status', [belController::class, 'status'])->name('api.bel.status');
+    Route::get('/next-schedule', [belController::class, 'getNextSchedule'])->name('api.bel.next-schedule');
+    Route::put('/{id}/toggle-status', [belController::class, 'toggleStatus'])->name('api.bel.toggle-status');
+    Route::post('/activate-all', [belController::class, 'activateAll'])->name('api.bel.activate-all');
+    Route::post('/deactivate-all', [belController::class, 'deactivateAll'])->name('api.bel.deactivate-all');
 
 });
 

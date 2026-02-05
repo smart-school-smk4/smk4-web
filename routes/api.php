@@ -4,10 +4,11 @@ use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\Api\AbsensiApiController;
 use App\Http\Controllers\Api\AbsensiLaporanController;
 use App\Http\Controllers\Api\AbsensiSiswaApiController;
-use App\Http\Controllers\Api\BelController;
+use App\Http\Controllers\Api\BellController;
 use App\Http\Controllers\Api\DevicesApiController;
 use App\Http\Controllers\Api\DeviceStudentController;
 use App\Http\Controllers\Api\SiswaApiController;
+use App\Http\Controllers\belController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\SettingPresensiController;
 
@@ -23,9 +24,9 @@ Route::prefix('bel')->group(function () {
 });
 
 // Endpoint untuk menerima data bel dari ESP32
-Route::post('/bell-events/manual', [BelController::class, 'storeManualEvent']);
-Route::post('/bell-events/schedule', [BelController::class, 'storeScheduleEvent']);
-Route::get('/bell-history', [BelController::class, 'getHistory']);
+Route::post('/bell-events/manual', [ApiBellController::class, 'storeManualEvent']);
+Route::post('/bell-events/schedule', [ApiBellController::class, 'storeScheduleEvent']);
+Route::get('/bell-history', [ApiBellController::class, 'getHistory']);
 
 Route::prefix('announcements')->group(function () {
     // CRUD operations

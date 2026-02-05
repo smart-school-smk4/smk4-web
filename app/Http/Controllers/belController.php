@@ -379,28 +379,23 @@ class BelController extends Controller
         $hari = $dayMap[now()->format('l')]; // format('l') = nama hari dalam Bahasa Inggris
 
         try {
-            $bellData = [
-                'hari' => $hari,
-                'waktu' => now()->format('H:i:s'),
-                'file_number' => $validated['file_number'],
-                'volume' => $validated['volume'],
-            ];
-
-            BellHistory::create(array_merge($bellData, [
-                'trigger_type' => 'manual',
-                'ring_time' => now()
-            ]));
-
+            // Kirim command ke ESP32 via MQTT (ESP32 akan log via HTTP setelah bel bunyi)
             $this->mqttService->publish(
                 $this->mqttConfig['topics']['commands']['ring'],
-                json_encode($validated),
+                json_encode([
+                    'file_number' => $validated['file_number'],
+                    'volume' => $validated['volume'] ?? 20
+                ]),
                 1
             );
 
             return response()->json([
                 'success' => true,
                 'message' => 'Bel manual berhasil diaktifkan',
-                'data' => $bellData
+                'data' => [
+                    'file_number' => $validated['file_number'],
+                    'volume' => $validated['volume'] ?? 20
+                ]
             ]);
         } catch (\Exception $e) {
             Log::error('Gagal mengirim bel manual: ' . $e->getMessage());

@@ -451,16 +451,16 @@ class BelController extends Controller
 
     protected function getFormattedSchedules()
     {
-        return JadwalBel::active()
+        return JadwalBel::active()  // Sudah filter is_active=true di query
             ->get()
             ->map(function ($item) {
                 return [
                     'd' => $item->hari,           // hari (day)
                     't' => Carbon::parse($item->waktu)->format('H:i'), // waktu (time)
                     'f' => $item->file_number,    // file_number
-                    'v' => (int)$item->volume ?? 15,  // volume
-                    'r' => (int)$item->repeat ?? 1,   // repeat
-                    'a' => (bool)$item->is_active     // is_active
+                    'v' => 15,                    // volume hardcoded
+                    'r' => 1,                     // repeat hardcoded
+                    'a' => true                   // is_active hardcoded (filtered by active() scope)
                 ];
             })->toArray();
     }

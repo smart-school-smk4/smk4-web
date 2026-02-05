@@ -11,6 +11,7 @@
 #include <PCF8575.h>
 #include <driver/i2s.h>
 #include <Preferences.h>
+#include <esp_task_wdt.h>
 
 // ========== Debug Configuration ==========
 #define SERIAL_DEBUG true
@@ -26,7 +27,7 @@
 
 // ========== Server Configuration ==========
 const char* VOICERSS_API_KEY = "90927de8275148d79080facd20fb486c";
-const char* VOICERSS_URL = "http://api.voicerss.org/?key=%s&hl=%s&v=%s&c=WAV&f=44khz_16bit_stereo&src=%s";
+const char* VOICERSS_URL = "http://api.voicerss.org/?key=%s&hl=%s&v=%s&c=WAV&f=22khz_32bit_stereo&src=%s";
 
 // ========== Configurable Parameters ==========
 char mqtt_server[40] = "test.mosquitto.org";
@@ -65,7 +66,10 @@ const char* TOPIC_ANNOUNCEMENT_STATUS = "announcement/status";
 #define I2S_BCK_PIN 12
 #define I2S_WS_PIN 13
 #define I2S_DOUT_PIN 14
-#define SAMPLE_RATE 44100
+#define SAMPLE_RATE 22050
+
+// Watchdog Timer
+#define WDT_TIMEOUT 30  // 30 detik timeout
 
 // ========== Hardware Components ==========
 WiFiClient espClient;
@@ -86,17 +90,34 @@ struct ActiveSchedule {
   unsigned long startTime = 0;
 };
 
-// ========== RMS Task Structure ==========
-enum TaskType { TASK_BEL, TASK_PENGUMUMAN, TASK_NTP_SYNC, TASK_NONE };
+// ========== Round Robin Priority Queue System ==========
+enum PriorityLevel {
+  PRIORITY_HIGH,    // Critical: Bel, Announcement, Schedule Check
+  PRIORITY_MEDIUM,  // Important: MQTT, Schedule Sync
+  PRIORITY_LOW      // Maintenance: I2C Monitor, NTP Sync
+};
+
+enum TaskType { 
+  TASK_BEL,
+  TASK_ANNOUNCEMENT,
+  TASK_SCHEDULE_CHECK,
+  TASK_MQTT_KEEPALIVE,
+  TASK_SCHEDULE_SYNC,
+  TASK_NTP_SYNC,
+  TASK_I2C_MONITOR,
+  TASK_NONE 
+};
+
 enum TaskState { TASK_IDLE, TASK_RUNNING, TASK_COMPLETED };
 
-struct RMSTask {
+struct Task {
   TaskType type = TASK_NONE;
   TaskState state = TASK_IDLE;
+  PriorityLevel priority = PRIORITY_LOW;
   unsigned long startTime = 0;
-  unsigned long period = 0;        // Untuk RMS priority
-  unsigned long deadline = 0;
-  int priority = 0;                // Lower number = higher priority
+  unsigned long period = 0;
+  unsigned long lastExecutionTime = 0;
+  bool isPeriodic = false;
   
   // Data untuk bel
   String fileNumber = "";
@@ -128,15 +149,10 @@ struct SystemState {
   bool relayController2Connected = false;
   bool relayController3Connected = false;
   bool relayController4Connected = false;
-  bool isPlaying = false;
   unsigned long lastCommunication = 0;
   unsigned long lastSync = 0;
   unsigned long lastNtpSync = 0;
   int scheduleCount = 0;
-  bool isSchedulePlaying = false;
-  unsigned long scheduleCooldownStart = 0;
-  const unsigned long SCHEDULE_COOLDOWN = 60000; 
-  int currentPlayingSchedule = -1;
   uint16_t relayStates1 = 0xFFFF; 
   uint16_t relayStates2 = 0xFFFF; 
   uint16_t relayStates3 = 0xFFFF;
@@ -147,16 +163,22 @@ struct SystemState {
   int i2cErrorCount = 0;
   unsigned long lastI2CRecovery = 0;
   
-  // RMS Task Queue
-  RMSTask taskQueue[10];  // Max 10 concurrent tasks
-  int taskCount = 0;
+  // Round Robin Priority Queues
+  Task highPriorityQueue[5];   // Max 5 high priority tasks
+  int highQueueCount = 0;
+  
+  Task mediumPriorityQueue[3]; // Max 3 medium priority tasks
+  int mediumQueueCount = 0;
+  
+  Task lowPriorityQueue[3];    // Max 3 low priority tasks
+  int lowQueueCount = 0;
+  
+  int currentHighIndex = 0;    // Round robin index for high queue
+  int currentMediumIndex = 0;  // Round robin index for medium queue
+  int currentLowIndex = 0;     // Round robin index for low queue
 };
 
 // ========== Global Variables ==========
-bool isTTSPending = false;
-String lastTTSPayload;
-unsigned long streamStartTime = 0;
-const unsigned long STREAM_TIMEOUT = 30000;
 Preferences preferences;
 
 
@@ -182,7 +204,7 @@ i2s_config_t i2s_config = {
     .channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT, // Stereo format
     .communication_format = I2S_COMM_FORMAT_STAND_I2S,
     .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1,
-    .dma_buf_count = 64,           // Dinaikkan ke 64 buffer untuk audio lebih smooth
+    .dma_buf_count = 8,            // Optimized: 8 buffers untuk balance performa & memory (32KB total)
     .dma_buf_len = 1024,          // 1024 samples per buffer
     .use_apll = false,            // Nonaktifkan APLL, gunakan PLL_D2_CLK
     .tx_desc_auto_clear = true,   // Auto clear TX descriptor
@@ -209,6 +231,18 @@ void setup() {
   LOG("Starting School Bell System - ESP32-S3 N16R8");
   LOG("Firmware Version: 1.0.0");
   LOG("CPU Frequency: " + String(getCpuFrequencyMhz()) + "MHz");
+  
+  // Setup Watchdog Timer (DISABLED - causing restart issues)
+  // LOG("Configuring Watchdog Timer...");
+  // esp_task_wdt_config_t wdt_config = {
+  //     .timeout_ms = WDT_TIMEOUT * 1000,  // Convert seconds to milliseconds
+  //     .idle_core_mask = 0,               // Don't watch idle tasks
+  //     .trigger_panic = true              // Panic and restart on timeout
+  // };
+  // esp_task_wdt_init(&wdt_config);
+  // esp_task_wdt_add(NULL);  // Add current task to WDT
+  LOG("Watchdog Timer DISABLED (prevented boot loop)");
+  
   // Optimasi khusus ESP32-S3
   setupESP32S3();
   // Hardcode I2C address untuk PCF8575
@@ -237,6 +271,18 @@ void setup() {
   } else {
     LOG("Loaded " + String(scheduleCount) + " schedules from flash");
   }
+  
+  // Initialize Round Robin Priority Queue Tasks
+  LOG("Initializing priority queue tasks...");
+  createScheduleCheckTask();    // HIGH priority - Every 1 second
+  createMQTTKeepaliveTask();    // MEDIUM priority - Every 15 seconds
+  createScheduleSyncTask();     // MEDIUM priority - Every 1 hour
+  createI2CMonitorTask();       // LOW priority - Every 1 minute
+  createNTPSyncTask();          // LOW priority - Every 24 hours
+  LOG("Priority queue tasks initialized");
+  LOG("HIGH Queue: " + String(state.highQueueCount) + " tasks");
+  LOG("MEDIUM Queue: " + String(state.mediumQueueCount) + " tasks");
+  LOG("LOW Queue: " + String(state.lowQueueCount) + " tasks");
   
   LOG("System initialization complete");
 }
@@ -313,21 +359,26 @@ void startConfigPortal() {
   
   if (!wifiManager.autoConnect("ESP32-S3-Bell-AP")) {
     LOG("Failed to connect and hit timeout");
+    LOG("Configuration NOT saved due to connection failure");
     delay(3000);
     ESP.restart();
   }
   
-  // Simpan parameter yang diinput
-  strcpy(mqtt_server, custom_mqtt_server.getValue());
-  strcpy(ip_server_laravel, custom_laravel_server.getValue());
-  
-  // Simpan ke preferences
-  preferences.begin("wifi_config", false);
-  preferences.putString("ssid", WiFi.SSID());
-  preferences.putString("pass", WiFi.psk());
-  preferences.putString("mqtt_server", mqtt_server);
-  preferences.putString("ip_server_laravel", ip_server_laravel);
-  preferences.end();
+  // Simpan parameter HANYA jika connection berhasil
+  if (WiFi.status() == WL_CONNECTED) {
+    strcpy(mqtt_server, custom_mqtt_server.getValue());
+    strcpy(ip_server_laravel, custom_laravel_server.getValue());
+    
+    // Simpan ke preferences
+    preferences.begin("wifi_config", false);
+    preferences.putString("ssid", WiFi.SSID());
+    preferences.putString("pass", WiFi.psk());
+    preferences.putString("mqtt_server", mqtt_server);
+    preferences.putString("ip_server_laravel", ip_server_laravel);
+    preferences.end();
+    
+    LOG("WiFi credentials saved successfully");
+  }
   
   state.wifiConnected = true;
   LOG("WiFi connected. IP: " + WiFi.localIP().toString());
@@ -480,8 +531,8 @@ void setupI2S() {
         // Lanjutkan saja karena mungkin belum terinstall
     }
     
-    // 2. Set konfigurasi buffer baru
-    i2s_config.dma_buf_count = 64;    // Perbesar untuk audio lebih smooth
+    // 2. Set konfigurasi buffer baru (optimized untuk ESP32-S3)
+    i2s_config.dma_buf_count = 8;     // 8 buffers cukup untuk smooth audio tanpa memory issue
     i2s_config.dma_buf_len = 1024;    
     
     // 3. Install driver
@@ -539,17 +590,14 @@ void setupMQTT() {
 
 // ========== Main Loop ==========
 void loop() {
+  // Reset watchdog timer (DISABLED)
+  // esp_task_wdt_reset();
+  
   maintainMQTTConnection();
   mqttClient.loop();
 
-  // RMS Task Scheduler - non-blocking
-  processRMSTasks();
-
-  static unsigned long lastSecondTick = 0;
-  if (millis() - lastSecondTick >= 1000) {
-    lastSecondTick = millis();
-    checkSchedules();
-  }
+  // Round Robin Priority Queue Scheduler
+  processTaskQueues();
 
   // Status check setiap 30 detik
   static unsigned long lastStatusLog = 0;
@@ -557,46 +605,18 @@ void loop() {
     lastStatusLog = millis();
     LOG("Status: MQTT=" + String(state.mqttConnected ? "Connected" : "Disconnected") + 
         " | WiFi=" + String(WiFi.status() == WL_CONNECTED ? "Connected" : "Disconnected"));
-    LOG("Active Tasks: " + String(state.taskCount));
+    LOG("Queue: HIGH=" + String(state.highQueueCount) + 
+        " | MEDIUM=" + String(state.mediumQueueCount) + 
+        " | LOW=" + String(state.lowQueueCount));
   }
 
-    // Periksa koneksi I2C setiap 30 detik
-  if (millis() - state.lastI2CCheck > 30000) {
-    state.lastI2CCheck = millis();
-    
-    bool controller1OK = checkI2CConnection(0x20);
-    bool controller2OK = checkI2CConnection(0x21);
-    bool controller3OK = checkI2CConnection(0x22);
-    bool controller4OK = checkI2CConnection(0x23);
-    
-    if (!controller1OK || !controller2OK || !controller3OK || !controller4OK) {
-      state.i2cErrorCount++;
-      state.i2cStable = false;
-      
-      // Jika error mencapai 3 kali, coba reset I2C
-      if (state.i2cErrorCount >= 3) {
-        recoverI2CBus();
-        state.i2cErrorCount = 0;
-      }
-    } else {
-      state.i2cStable = true;
-    }
-    
-    logI2CStatus();
-  }
-
+  // Reset active schedule setelah 1 menit
   for (int i = 0; i < 3; i++) {
     if (state.activeSchedules[i].index != -1 && 
         millis() - state.activeSchedules[i].startTime >= 60000) {
       LOG("Resetting active schedule index: " + String(i));
       state.activeSchedules[i].index = -1;
     }
-  }
-
-  if (millis() - state.lastNtpSync > 24 * 60 * 60 * 1000) {
-    LOG("Creating NTP sync task");
-    createNTPSyncTask();
-    state.lastNtpSync = millis(); // Reset timer
   }
 
   state.lastCommunication = millis() / 1000;
@@ -796,8 +816,140 @@ void handleRelayControl(String payload) {
   }
 }
 
+void playTTS(String text, String language, String voice) {
+    LOG("playTTS() started");
+
+    // [1] Persiapan Awal
+    esp_wifi_set_ps(WIFI_PS_NONE);
+    WiFi.setSleep(false);
+
+    LOG("WiFi power settings adjusted");
+
+    // [2] Setup I2S
+    i2s_zero_dma_buffer(I2S_NUM_0);
+    i2s_stop(I2S_NUM_0);
+    LOG("I2S driver reset");
+
+    i2s_set_clk(I2S_NUM_0, SAMPLE_RATE, I2S_BITS_PER_SAMPLE_16BIT, I2S_CHANNEL_STEREO);
+    i2s_start(I2S_NUM_0);
+    LOG("I2S clock started");
+
+    // [3] Download Audio
+    String url = "http://api.voicerss.org/?key=" + String(VOICERSS_API_KEY) + 
+                "&hl=" + language + "&v=" + voice + 
+                "&c=WAV&f=22khz_32bit_stereo&src=" + urlEncode(text);
+    LOG("Fetching TTS URL: " + url);
+
+    HTTPClient http;
+    http.setReuse(true);
+    http.setTimeout(15000);  // Reduced dari 60s ke 15s untuk responsiveness
+    
+    if (!http.begin(url)) {
+        LOG("HTTP Begin failed");
+        return;
+    }
+    LOG("HTTP client started");
+
+    // Retry logic untuk reliability
+    int httpCode = -1;
+    int retries = 3;
+    while (retries-- > 0) {
+        httpCode = http.GET();
+        if (httpCode == HTTP_CODE_OK) break;
+        
+        LOG("HTTP attempt failed (" + String(httpCode) + "), retry " + String(3 - retries) + "/3");
+        delay(1000);
+    }
+
+    if (httpCode != HTTP_CODE_OK) {
+        LOG("HTTP Error after all retries: " + String(httpCode));
+        http.end();
+        return;
+    }
+    LOG("HTTP Response OK");
+
+    // [4] Baca Data Sekaligus
+    int contentLength = http.getSize();
+    LOG("Content length: " + String(contentLength));
+
+    if (contentLength <= 44) {
+        LOG("Invalid content length");
+        http.end();
+        return;
+    }
+
+    // Validasi PSRAM availability
+    if (!psramFound()) {
+        LOG("ERROR: PSRAM not available!");
+        http.end();
+        return;
+    }
+    
+    uint8_t* audioBuffer = (uint8_t*)ps_malloc(contentLength);
+    if (!audioBuffer) {
+        LOG("ERROR: Failed to allocate " + String(contentLength) + " bytes in PSRAM");
+        LOG("Free PSRAM: " + String(ESP.getFreePsram()) + " bytes");
+        http.end();
+        return;
+    }
+    LOG("Memory allocated: " + String(contentLength) + " bytes (Free PSRAM: " + String(ESP.getFreePsram()) + ")");
+
+    int bytesRead = http.getStreamPtr()->readBytes(audioBuffer, contentLength);
+    http.end();
+
+    if (bytesRead != contentLength) {
+        LOG("Download incomplete (" + String(bytesRead) + "/" + String(contentLength) + ")");
+        free(audioBuffer);
+        return;
+    }
+    LOG("Audio data downloaded");
+
+    // [5] Proses Audio Data
+    uint8_t* audioData = audioBuffer + 44; // Skip header WAV
+    size_t audioSize = contentLength - 44;
+    
+    // [6] Pre-fill DMA Buffer (SOLUSI UTAMA)
+    size_t prefillSize = 4096; 
+    if (audioSize > prefillSize) {
+        size_t bytesWritten;
+        i2s_write(I2S_NUM_0, audioData, prefillSize, &bytesWritten, portMAX_DELAY);
+        audioData += prefillSize;
+        audioSize -= prefillSize;
+        LOG("DMA buffer pre-filled: " + String(bytesWritten) + " bytes");
+    }
+
+    // [7] Mainkan Sisa Audio
+    LOG("Starting audio playback...");
+    
+    size_t totalWritten = 0;
+    while (audioSize > 0) {
+        // Reset watchdog during long audio playback (DISABLED)
+        // esp_task_wdt_reset();
+        
+        size_t bytesWritten;
+        esp_err_t err = i2s_write(I2S_NUM_0, audioData, audioSize, &bytesWritten, portMAX_DELAY);
+        
+        if (err != ESP_OK) {
+            LOG("I2S Write Error: " + String(err));
+            break;
+        }
+        
+        audioData += bytesWritten;
+        audioSize -= bytesWritten;
+        totalWritten += bytesWritten;
+        
+        // Beri jeda kecil untuk memastikan DAC tidak overflow
+        if (bytesWritten > 2048) {
+            delay(1);
+        }
+    }
+  
+    // [8] Cleanup
+    free(audioBuffer);
+    LOG("Audio playback completed. Total written: " + String(totalWritten) + " bytes");
+}
+
 void handleTTSPlay(String payload) {
-  lastTTSPayload = payload;
   DynamicJsonDocument doc(512);
   DeserializationError error = deserializeJson(doc, payload);
   if (error) {
@@ -815,16 +967,15 @@ void handleTTSPlay(String payload) {
 
   JsonArray ruangans = doc["ruang"].as<JsonArray>();
   std::vector<int> relayList;
+  
   for (int room : ruangans) {
     if (room >= 0 && room < RELAY_COUNT) {
       relayList.push_back(room);
     }
   }
-
-  // Buat RMS task untuk pengumuman (non-blocking)
-  createPengumumanTask(text, lang, voice, relayList);
   
-  lastTTSPayload = ""; // Kosongkan payload
+  // Add to priority queue instead of direct execution
+  createAnnouncementTask(text, lang, voice, relayList);
 }
 
 void handleRingCommand(String payload) {
@@ -1015,16 +1166,35 @@ void handleScheduleSync(String payload) {
     return;
   }
 
-  // Parse compressed keys
-  if (!doc.containsKey("s")) {  // 's' = schedules
-    LOG("Missing schedules array");
+  // Support both formats: compressed (new) and full (old)
+  JsonArray schedulesArray;
+  String newChecksum = "";
+  int count = 0;
+  
+  // Try compressed format first (new format)
+  if (doc.containsKey("s")) {
+    schedulesArray = doc["s"].as<JsonArray>();
+    newChecksum = doc["c"] | "";
+    count = doc["n"] | 0;
+    LOG("Using compressed format");
+  }
+  // Fallback to old format for backward compatibility
+  else if (doc.containsKey("schedules")) {
+    schedulesArray = doc["schedules"].as<JsonArray>();
+    // Generate checksum from schedules
+    String schedulesStr;
+    serializeJson(schedulesArray, schedulesStr);
+    newChecksum = String(schedulesArray.size());
+    count = schedulesArray.size();
+    LOG("Using legacy format (backward compatibility)");
+  }
+  // No schedules found
+  else {
+    LOG("Missing schedules array in both formats");
     sendAckResponse("error", "No schedules provided");
     return;
   }
 
-  String newChecksum = doc["c"] | "";  // 'c' = checksum
-  int count = doc["n"] | 0;             // 'n' = count
-  
   // Cek apakah perlu update (bandingkan dengan checksum lama)
   preferences.begin("bell_schedules", true);
   String oldChecksum = preferences.getString("checksum", "");
@@ -1036,7 +1206,6 @@ void handleScheduleSync(String payload) {
     return;
   }
 
-  JsonArray schedulesArray = doc["s"];  // 's' = schedules
   LOG("Found " + String(count) + " schedules, checksum: " + newChecksum);
   
   // Simpan checksum baru
@@ -1064,18 +1233,25 @@ void saveSchedulesToPreferences(JsonArray schedulesArray) {
   // Simpan jumlah schedule
   preferences.putUInt("count", schedulesArray.size());
   
-  // Simpan setiap schedule (parse key pendek)
+  // Simpan setiap schedule (support both compressed and full keys)
   for (int i = 0; i < schedulesArray.size(); i++) {
     JsonObject s = schedulesArray[i];
     String prefix = "s" + String(i) + "_";
     
-    // Parse compressed keys: d=hari, t=waktu, f=file, v=volume, r=repeat, a=active
-    preferences.putString((prefix + "day").c_str(), s["d"].as<String>());
-    preferences.putString((prefix + "time").c_str(), s["t"].as<String>().substring(0, 5));
-    preferences.putString((prefix + "file").c_str(), s["f"].as<String>());
-    preferences.putInt((prefix + "vol").c_str(), s["v"] | 15);
-    preferences.putInt((prefix + "rep").c_str(), s["r"] | 1);
-    preferences.putBool((prefix + "active").c_str(), s["a"] | true);
+    // Try compressed keys first (d, t, f, v, r, a)
+    String hari = s.containsKey("d") ? s["d"].as<String>() : s["hari"].as<String>();
+    String waktu = s.containsKey("t") ? s["t"].as<String>() : s["waktu"].as<String>();
+    String file = s.containsKey("f") ? s["f"].as<String>() : s["file_number"].as<String>();
+    int volume = s.containsKey("v") ? (s["v"] | 15) : (s["volume"] | 15);
+    int repeat = s.containsKey("r") ? (s["r"] | 1) : (s["repeat"] | 1);
+    bool active = s.containsKey("a") ? (s["a"] | true) : (s["is_active"] | true);
+    
+    preferences.putString((prefix + "day").c_str(), hari);
+    preferences.putString((prefix + "time").c_str(), waktu.substring(0, 5));
+    preferences.putString((prefix + "file").c_str(), file);
+    preferences.putInt((prefix + "vol").c_str(), volume);
+    preferences.putInt((prefix + "rep").c_str(), repeat);
+    preferences.putBool((prefix + "active").c_str(), active);
   }
   
   preferences.end();
@@ -1129,23 +1305,30 @@ void updateSchedules(JsonArray schedulesArray) {
   for (int i = 0; i < schedulesArray.size() && scheduleCount < 50; i++) {
     JsonObject s = schedulesArray[i];
     
-    // Parse compressed keys: d=hari, t=waktu, f=file
-    if (!s.containsKey("d") || !s.containsKey("t") || !s.containsKey("f")) {
+    // Support both compressed and full keys
+    String hari = s.containsKey("d") ? s["d"].as<String>() : s["hari"].as<String>();
+    String waktu = s.containsKey("t") ? s["t"].as<String>() : s["waktu"].as<String>();
+    String file = s.containsKey("f") ? s["f"].as<String>() : s["file_number"].as<String>();
+    
+    // Validation
+    if (hari.isEmpty() || waktu.isEmpty() || file.isEmpty()) {
       LOG("Skipping invalid schedule - missing required fields");
       continue;
     }
 
     schedules[scheduleCount] = {
-        s["d"].as<String>(),       // day (d = hari)
-        s["t"].as<String>().substring(0, 5),  // time (t = waktu)
-        s["f"].as<String>(),       // fileNumber (f = file_number)
-        s["v"] | 15,               // volume (v = volume)
-        s["r"] | 1,                // repeat (r = repeat)
-        s["a"] | true              // isActive (a = is_active)
+        hari,
+        waktu.substring(0, 5),
+        file,
+        s.containsKey("v") ? s["v"].as<int>() : (s.containsKey("volume") ? s["volume"].as<int>() : 15),
+        s.containsKey("r") ? s["r"].as<int>() : (s.containsKey("repeat") ? s["repeat"].as<int>() : 1),
+        s.containsKey("a") ? s["a"].as<bool>() : (s.containsKey("is_active") ? s["is_active"].as<bool>() : true)
     };
     
     LOG("Added schedule: " + schedules[scheduleCount].day + " " + 
-        schedules[scheduleCount].time + " File:" + schedules[scheduleCount].fileNumber);
+        schedules[scheduleCount].time + " File:" + schedules[scheduleCount].fileNumber + 
+        " Vol:" + String(schedules[scheduleCount].volume) + 
+        " Rep:" + String(schedules[scheduleCount].repeat));
     
     scheduleCount++;
   }
@@ -1242,7 +1425,14 @@ void recoverI2CBus() {
   LOG("I2C bus recovery completed");
   state.lastI2CRecovery = millis();
   
-  // Set ulang status relay controller
+  // Re-initialize ALL PCF8575 objects (CRITICAL FIX)
+  LOG("Re-initializing PCF8575 controllers...");
+  setupRelayController(0x20, 1);
+  setupRelayController(0x21, 2);
+  setupRelayController(0x22, 3);
+  setupRelayController(0x23, 4);
+  
+  // Restore relay states after reinit
   if (state.relayController1Connected) {
     relayController.write16(state.relayStates1);
   }
@@ -1255,6 +1445,8 @@ void recoverI2CBus() {
   if (state.relayController4Connected) {
     relayController4.write16(state.relayStates4);
   }
+  
+  LOG("All relay states restored");
 }
 
 void logI2CStatus() {
@@ -1273,144 +1465,237 @@ void logI2CStatus() {
 
 // ========== RMS Task Management Functions ==========
 void createBelTask(String fileNumber, int volume, int repeat, const char* triggerType) {
-  if (state.taskCount >= 10) {
-    LOG("Task queue full!");
+  if (state.highQueueCount >= 5) {
+    LOG("High priority queue full!");
     return;
   }
   
-  RMSTask newTask;
+  Task newTask;
   newTask.type = TASK_BEL;
   newTask.state = TASK_IDLE;
+  newTask.priority = PRIORITY_HIGH;
   newTask.startTime = millis();
-  newTask.period = 30000;  // Bel biasanya 30 detik
-  newTask.priority = 1;    // Priority 1: Highest (Critical - Bel)
-  newTask.deadline = millis() + (30000 * repeat);
+  newTask.period = 30000;
+  newTask.isPeriodic = false;
   newTask.fileNumber = fileNumber;
   newTask.volume = volume;
   newTask.repeat = repeat;
   newTask.currentRepeat = 0;
   newTask.triggerType = String(triggerType);
   
-  state.taskQueue[state.taskCount++] = newTask;
-  LOG("[RMS] Bel task created - Priority: 1, Period: 30s");
-  
-  sortTasksByPriority();
+  state.highPriorityQueue[state.highQueueCount++] = newTask;
+  LOG("[QUEUE] Bel task added to HIGH priority queue");
 }
 
-void createPengumumanTask(String text, String lang, String voice, std::vector<int> relays) {
-  if (state.taskCount >= 10) {
-    LOG("Task queue full!");
+void createScheduleCheckTask() {
+  if (state.highQueueCount >= 5) return;
+  
+  Task newTask;
+  newTask.type = TASK_SCHEDULE_CHECK;
+  newTask.state = TASK_IDLE;
+  newTask.priority = PRIORITY_HIGH;
+  newTask.period = 1000;
+  newTask.isPeriodic = true;
+  newTask.lastExecutionTime = millis();
+  
+  state.highPriorityQueue[state.highQueueCount++] = newTask;
+  LOG("[QUEUE] Schedule Check added to HIGH priority (1s period)");
+}
+
+void createMQTTKeepaliveTask() {
+  if (state.mediumQueueCount >= 3) return;
+  
+  Task newTask;
+  newTask.type = TASK_MQTT_KEEPALIVE;
+  newTask.state = TASK_IDLE;
+  newTask.priority = PRIORITY_MEDIUM;
+  newTask.period = 15000;
+  newTask.isPeriodic = true;
+  newTask.lastExecutionTime = millis();
+  
+  state.mediumPriorityQueue[state.mediumQueueCount++] = newTask;
+  LOG("[QUEUE] MQTT Keepalive added to MEDIUM priority (15s period)");
+}
+
+void createScheduleSyncTask() {
+  if (state.mediumQueueCount >= 3) return;
+  
+  Task newTask;
+  newTask.type = TASK_SCHEDULE_SYNC;
+  newTask.state = TASK_IDLE;
+  newTask.priority = PRIORITY_MEDIUM;
+  newTask.period = 3600000;
+  newTask.isPeriodic = true;
+  newTask.lastExecutionTime = millis();
+  
+  state.mediumPriorityQueue[state.mediumQueueCount++] = newTask;
+  LOG("[QUEUE] Schedule Sync added to MEDIUM priority (1h period)");
+}
+
+void createI2CMonitorTask() {
+  if (state.lowQueueCount >= 3) return;
+  
+  Task newTask;
+  newTask.type = TASK_I2C_MONITOR;
+  newTask.state = TASK_IDLE;
+  newTask.priority = PRIORITY_LOW;
+  newTask.period = 60000;
+  newTask.isPeriodic = true;
+  newTask.lastExecutionTime = millis();
+  
+  state.lowPriorityQueue[state.lowQueueCount++] = newTask;
+  LOG("[QUEUE] I2C Monitor added to LOW priority (1m period)");
+}
+
+void createNTPSyncTask() {
+  if (state.lowQueueCount >= 3) return;
+  
+  Task newTask;
+  newTask.type = TASK_NTP_SYNC;
+  newTask.state = TASK_IDLE;
+  newTask.priority = PRIORITY_LOW;
+  newTask.period = 86400000;
+  newTask.isPeriodic = true;
+  newTask.lastExecutionTime = millis();
+  
+  state.lowPriorityQueue[state.lowQueueCount++] = newTask;
+  LOG("[QUEUE] NTP Sync added to LOW priority (24h period)");
+}
+
+void createAnnouncementTask(String text, String lang, String voice, std::vector<int> relays) {
+  if (state.highQueueCount >= 5) {
+    LOG("High priority queue full!");
     return;
   }
   
-  RMSTask newTask;
-  newTask.type = TASK_PENGUMUMAN;
+  Task newTask;
+  newTask.type = TASK_ANNOUNCEMENT;
   newTask.state = TASK_IDLE;
+  newTask.priority = PRIORITY_HIGH;
   newTask.startTime = millis();
-  newTask.period = 60000;  // Pengumuman bisa lebih lama
-  newTask.priority = 2;    // Priority 2: Medium (Important - Audio)
-  newTask.deadline = millis() + 60000;
+  newTask.isPeriodic = false;
   newTask.ttsText = text;
   newTask.ttsLanguage = lang;
   newTask.ttsVoice = voice;
   newTask.relayList = relays;
-  newTask.downloadComplete = false;
   
-  state.taskQueue[state.taskCount++] = newTask;
-  LOG("[RMS] Pengumuman task created - Priority: 2, Period: 60s");
-  
-  sortTasksByPriority();
+  state.highPriorityQueue[state.highQueueCount++] = newTask;
+  LOG("[QUEUE] Announcement task added to HIGH priority queue");
 }
 
-void createNTPSyncTask() {
-  if (state.taskCount >= 10) {
-    LOG("Task queue full!");
-    return;
+void processTaskQueues() {
+  // Process HIGH priority queue first (Round Robin)
+  if (state.highQueueCount > 0) {
+    processQueue(state.highPriorityQueue, state.highQueueCount, state.currentHighIndex, PRIORITY_HIGH);
   }
   
-  RMSTask newTask;
-  newTask.type = TASK_NTP_SYNC;
-  newTask.state = TASK_IDLE;
-  newTask.startTime = millis();
-  newTask.period = 86400000;  // 24 jam (lowest priority task)
-  newTask.priority = 3;        // Priority terendah (non-critical)
-  newTask.deadline = millis() + 300000; // 5 menit deadline
+  // Then MEDIUM priority
+  if (state.mediumQueueCount > 0) {
+    processQueue(state.mediumPriorityQueue, state.mediumQueueCount, state.currentMediumIndex, PRIORITY_MEDIUM);
+  }
   
-  state.taskQueue[state.taskCount++] = newTask;
-  LOG("[RMS] NTP Sync task created - Priority: 3, Period: 24h");
-  
-  sortTasksByPriority();
+  // Finally LOW priority
+  if (state.lowQueueCount > 0) {
+    processQueue(state.lowPriorityQueue, state.lowQueueCount, state.currentLowIndex, PRIORITY_LOW);
+  }
 }
 
-void sortTasksByPriority() {
-  // Bubble sort berdasarkan priority (lower = higher priority)
-  for (int i = 0; i < state.taskCount - 1; i++) {
-    for (int j = 0; j < state.taskCount - i - 1; j++) {
-      if (state.taskQueue[j].priority > state.taskQueue[j + 1].priority) {
-        RMSTask temp = state.taskQueue[j];
-        state.taskQueue[j] = state.taskQueue[j + 1];
-        state.taskQueue[j + 1] = temp;
-      }
+void processQueue(Task* queue, int& count, int& index, PriorityLevel priority) {
+  if (count == 0) return;
+  
+  Task* task = &queue[index];
+  
+  // Cek periodic task - skip jika belum waktunya
+  if (task->isPeriodic && task->state == TASK_IDLE) {
+    if (millis() - task->lastExecutionTime < task->period) {
+      // Move to next task (Round Robin)
+      index = (index + 1) % count;
+      return; // Belum waktunya execute
     }
   }
-}
-
-void processRMSTasks() {
-  if (state.taskCount == 0) return;
-  
-  // Proses task dengan priority tertinggi (index 0)
-  RMSTask* task = &state.taskQueue[0];
   
   if (task->state == TASK_IDLE) {
-    String taskName = task->type == TASK_BEL ? "BEL" : 
-                      task->type == TASK_PENGUMUMAN ? "PENGUMUMAN" : "NTP_SYNC";
-    LOG("[RMS] Starting task type: " + taskName);
+    String taskName = "UNKNOWN";
+    switch(task->type) {
+      case TASK_BEL: taskName = "BEL"; break;
+      case TASK_SCHEDULE_CHECK: taskName = "SCHEDULE_CHECK"; break;
+      case TASK_NTP_SYNC: taskName = "NTP_SYNC"; break;
+      case TASK_SCHEDULE_SYNC: taskName = "SCHEDULE_SYNC"; break;
+      case TASK_MQTT_KEEPALIVE: taskName = "MQTT_KEEPALIVE"; break;
+      case TASK_I2C_MONITOR: taskName = "I2C_MONITOR"; break;
+      default: break;
+    }
+    LOG("[RMS] Starting task: " + taskName);
     task->state = TASK_RUNNING;
+    task->lastExecutionTime = millis();
     
     if (task->type == TASK_BEL) {
-      // Nyalakan semua relay
       setAllRelays(true);
       sendRelayStatusUpdate();
-      
-      // Mulai putar bel
       dfPlayer.volume(25);
       dfPlayer.play(task->fileNumber.toInt());
       task->repeatStartTime = millis();
       LOG("[BEL] Playing file " + task->fileNumber + " (repeat " + String(task->currentRepeat + 1) + "/" + String(task->repeat) + ")");
-    } 
-    else if (task->type == TASK_PENGUMUMAN) {
-      // Nyalakan relay sesuai list
-      for (int relay : task->relayList) {
-        setRelayState(relay, true);
-      }
-      sendRelayStatusUpdate();
-      
-      // Mulai download TTS (non-blocking)
-      if (!task->downloadComplete) {
-        startTTSDownload(task);
-      }
+    }
+    else if (task->type == TASK_SCHEDULE_CHECK) {
+      checkSchedules();
+      task->state = TASK_COMPLETED;
+      LOG("[RMS] Schedule check completed");
     }
     else if (task->type == TASK_NTP_SYNC) {
-      // NTP Sync langsung selesai di satu call
       LOG("[NTP] Starting sync...");
       syncRTCWithNTP();
       task->state = TASK_COMPLETED;
-      LOG("[RMS] NTP Sync task completed");
+      LOG("[RMS] NTP Sync completed");
+    }
+    else if (task->type == TASK_SCHEDULE_SYNC) {
+      LOG("[SYNC] Requesting schedule sync...");
+      requestScheduleSync();
+      task->state = TASK_COMPLETED;
+      LOG("[RMS] Schedule sync completed");
+    }
+    else if (task->type == TASK_MQTT_KEEPALIVE) {
+      if (!mqttClient.connected()) {
+        LOG("[MQTT] Connection lost, reconnecting...");
+        reconnectMQTT();
+      } else {
+        LOG("[MQTT] Connection healthy");
+      }
+      task->state = TASK_COMPLETED;
+    }
+    else if (task->type == TASK_I2C_MONITOR) {
+      bool c1 = checkI2CConnection(0x20);
+      bool c2 = checkI2CConnection(0x21);
+      bool c3 = checkI2CConnection(0x22);
+      bool c4 = checkI2CConnection(0x23);
+      
+      if (!c1 || !c2 || !c3 || !c4) {
+        state.i2cErrorCount++;
+        state.i2cStable = false;
+        if (state.i2cErrorCount >= 3) {
+          recoverI2CBus();
+          state.i2cErrorCount = 0;
+        }
+      } else {
+        state.i2cStable = true;
+        state.i2cErrorCount = 0;
+      }
+      
+      logI2CStatus();
+      task->state = TASK_COMPLETED;
+      LOG("[RMS] I2C Monitor completed");
     }
   }
   else if (task->state == TASK_RUNNING) {
     if (task->type == TASK_BEL) {
-      // Cek apakah sudah 30 detik
       if (millis() - task->repeatStartTime >= 30000) {
         task->currentRepeat++;
         
         if (task->currentRepeat < task->repeat) {
-          // Putar ulang
           dfPlayer.play(task->fileNumber.toInt());
           task->repeatStartTime = millis();
           LOG("[BEL] Repeat " + String(task->currentRepeat + 1) + "/" + String(task->repeat));
         } else {
-          // Selesai
           task->state = TASK_COMPLETED;
           setAllRelays(false);
           sendRelayStatusUpdate();
@@ -1419,153 +1704,42 @@ void processRMSTasks() {
         }
       }
     }
-    else if (task->type == TASK_PENGUMUMAN) {
-      if (task->downloadComplete && task->audioBuffer != nullptr) {
-        // Stream audio non-blocking
-        if (streamTTSAudio(task)) {
-          // Selesai streaming
-          task->state = TASK_COMPLETED;
-          
-          // Matikan relay
-          for (int relay : task->relayList) {
-            setRelayState(relay, false);
-          }
-          sendRelayStatusUpdate();
-          
-          // Free memory
-          if (task->audioBuffer) {
-            free(task->audioBuffer);
-            task->audioBuffer = nullptr;
-          }
-          LOG("[RMS] Pengumuman task completed");
-        }
-      }
-    }
   }
   
   // Hapus task yang sudah selesai
   if (task->state == TASK_COMPLETED) {
-    removeCompletedTask(0);
+    // Jika periodic, reset ke IDLE dan update lastExecutionTime
+    if (task->isPeriodic) {
+      task->state = TASK_IDLE;
+      task->lastExecutionTime = millis();
+      LOG("[QUEUE] Periodic task reset to IDLE");
+    } else {
+      // Non-periodic task: remove dari queue
+      removeTaskFromQueue(queue, count, index);
+      LOG("[QUEUE] Non-periodic task removed from queue");
+      return; // Index sudah di-adjust oleh removeTaskFromQueue
+    }
   }
+  
+  // Move to next task (Round Robin)
+  index = (index + 1) % count;
 }
 
-void removeCompletedTask(int index) {
-  if (index >= state.taskCount) return;
+// Helper function untuk remove task dari queue
+void removeTaskFromQueue(Task* queue, int& count, int& index) {
+  if (count <= 0) return;
   
-  // Shift semua task setelahnya
-  for (int i = index; i < state.taskCount - 1; i++) {
-    state.taskQueue[i] = state.taskQueue[i + 1];
-  }
-  state.taskCount--;
-  LOG("[RMS] Task removed. Remaining tasks: " + String(state.taskCount));
-}
-
-void startTTSDownload(RMSTask* task) {
-  LOG("[TTS] Starting download...");
-  
-  String url = "http://api.voicerss.org/?key=" + String(VOICERSS_API_KEY) + 
-              "&hl=" + task->ttsLanguage + "&v=" + task->ttsVoice + 
-              "&c=WAV&f=44khz_16bit_stereo&src=" + urlEncode(task->ttsText);
-  
-  HTTPClient http;
-  http.setReuse(true);
-  http.setTimeout(60000);
-  
-  if (!http.begin(url)) {
-    LOG("[TTS] HTTP Begin failed");
-    task->state = TASK_COMPLETED;
-    return;
+  // Shift semua task setelah index ke kiri
+  for (int i = index; i < count - 1; i++) {
+    queue[i] = queue[i + 1];
   }
   
-  int httpCode = http.GET();
-  if (httpCode != HTTP_CODE_OK) {
-    LOG("[TTS] HTTP Error: " + String(httpCode));
-    http.end();
-    task->state = TASK_COMPLETED;
-    return;
+  count--;
+  
+  // Adjust index jika perlu
+  if (index >= count && count > 0) {
+    index = 0;
   }
-  
-  int contentLength = http.getSize();
-  if (contentLength <= 44) {
-    LOG("[TTS] Invalid content length");
-    http.end();
-    task->state = TASK_COMPLETED;
-    return;
-  }
-  
-  // Alokasi memory
-  task->audioBuffer = (uint8_t*)ps_malloc(contentLength);
-  if (!task->audioBuffer) {
-    LOG("[TTS] Memory allocation failed");
-    http.end();
-    task->state = TASK_COMPLETED;
-    return;
-  }
-  
-  // Download
-  int bytesRead = http.getStreamPtr()->readBytes(task->audioBuffer, contentLength);
-  http.end();
-  
-  if (bytesRead != contentLength) {
-    LOG("[TTS] Download incomplete");
-    free(task->audioBuffer);
-    task->audioBuffer = nullptr;
-    task->state = TASK_COMPLETED;
-    return;
-  }
-  
-  // Setup untuk streaming
-  task->audioSize = contentLength - 44;  // Skip WAV header
-  task->audioPosition = 44;
-  task->downloadComplete = true;
-  
-  // Setup I2S
-  i2s_zero_dma_buffer(I2S_NUM_0);
-  i2s_stop(I2S_NUM_0);
-  i2s_set_clk(I2S_NUM_0, SAMPLE_RATE, I2S_BITS_PER_SAMPLE_16BIT, I2S_CHANNEL_STEREO);
-  i2s_start(I2S_NUM_0);
-  
-  // Pre-fill DMA buffer - simple approach yang terbukti work
-  size_t prefillSize = 32768; // 32KB untuk audio lebih smooth
-  if (task->audioSize > prefillSize) {
-    size_t bytesWritten;
-    i2s_write(I2S_NUM_0, task->audioBuffer + task->audioPosition, prefillSize, &bytesWritten, portMAX_DELAY);
-    task->audioPosition += bytesWritten;
-    LOG("[TTS] Pre-filled " + String(bytesWritten) + " bytes");
-  }
-  
-  LOG("[TTS] Download complete, ready to stream");
-}
-
-bool streamTTSAudio(RMSTask* task) {
-  if (!task->audioBuffer || task->audioPosition >= task->audioSize + 44) {
-    return true; // Selesai
-  }
-  
-  // Stream chunk yang lebih kecil tapi dengan timeout lebih lama untuk smooth playback
-  size_t chunkSize = 4096; // 4KB per call - balance antara responsiveness dan smoothness
-  size_t remainingSize = (task->audioSize + 44) - task->audioPosition;
-  
-  if (remainingSize == 0) {
-    return true; // Selesai
-  }
-  
-  if (remainingSize < chunkSize) {
-    chunkSize = remainingSize;
-  }
-  
-  size_t bytesWritten;
-  // Timeout ditingkatkan ke 100ms untuk memastikan data terkirim sempurna
-  esp_err_t err = i2s_write(I2S_NUM_0, task->audioBuffer + task->audioPosition, 
-                            chunkSize, &bytesWritten, 100);
-  
-  if (err == ESP_OK) {
-    task->audioPosition += bytesWritten;
-  } else {
-    LOG("[TTS] I2S write error: " + String(err));
-  }
-  
-  return (task->audioPosition >= task->audioSize + 44);
 }
 
 void logBellEvent(String fileNumber, int volume, int repeat, const char* triggerType) {
@@ -1576,8 +1750,8 @@ void logBellEvent(String fileNumber, int volume, int repeat, const char* trigger
   doc["waktu"] = formatTime(now.hour(), now.minute(), now.second());
   doc["file_number"] = fileNumber;
   doc["trigger_type"] = triggerType;
-  doc["volume"] = volume;
-  doc["repeat"] = repeat;
+  doc["volume"] = (volume > 0) ? volume : 20;  // Default 20 jika 0
+  doc["repeat"] = (repeat > 0) ? repeat : 1;   // Default 1 jika 0
   
   String payload;
   serializeJson(doc, payload);
@@ -1595,55 +1769,24 @@ void logBellEvent(String fileNumber, int volume, int repeat, const char* trigger
   LOG(mqttSuccess ? "MQTT publish success" : "MQTT publish failed");
 }
 
-// Fungsi HTTP/HTTPS dengan retry dan fallback
+// Fungsi HTTPS only (Cloudflare force HTTPS)
 void sendBellEventViaHTTP(String jsonPayload, const char* triggerType) {
   // Gunakan endpoint berbeda untuk manual dan schedule
   String endpoint = (strcmp(triggerType, "schedule") == 0) ? 
                    "/api/bell-events/schedule" : "/api/bell-events/manual";
   
-  bool success = false;
+  String url = "https://" + String(ip_server_laravel) + endpoint;
   
-  // Coba HTTPS dulu
-  LOG("Attempting HTTPS...");
-  success = sendHTTPRequest("https://" + String(ip_server_laravel) + endpoint, jsonPayload, true);
+  WiFiClientSecure client;
+  client.setInsecure(); // Skip certificate validation
   
-  // Jika HTTPS gagal, fallback ke HTTP
-  if (!success) {
-    LOG("HTTPS failed, falling back to HTTP...");
-    success = sendHTTPRequest("http://" + String(ip_server_laravel) + endpoint, jsonPayload, false);
-  }
-  
-  if (success) {
-    LOG("Bell event sent successfully");
-  } else {
-    LOG("Failed to send bell event after all attempts");
-  }
-}
-
-bool sendHTTPRequest(String url, String jsonPayload, bool useHTTPS) {
   HTTPClient http;
-  
-  if (useHTTPS) {
-    WiFiClientSecure client;
-    client.setInsecure(); // Skip certificate validation
-    client.setTimeout(30); // 30 second timeout for connection
-    
-    if (!http.begin(client, url)) {
-      LOG("Failed to begin HTTPS connection");
-      return false;
-    }
-  } else {
-    WiFiClient client;
-    if (!http.begin(client, url)) {
-      LOG("Failed to begin HTTP connection");
-      return false;
-    }
-  }
-  
+  http.begin(client, url);
   http.addHeader("Content-Type", "application/json");
-  http.setTimeout(30000); // 30 detik timeout
+  http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS); // Follow redirects
+  http.setTimeout(15000); // 15 detik timeout
   
-  LOG("Sending to: " + url);
+  LOG("Sending HTTPS request to: " + url);
   LOG("Payload: " + jsonPayload);
   
   int httpCode = http.POST(jsonPayload);
@@ -1652,20 +1795,16 @@ bool sendHTTPRequest(String url, String jsonPayload, bool useHTTPS) {
     LOG("Response code: " + String(httpCode));
     if (httpCode == 200 || httpCode == 201) {
       String response = http.getString();
-      LOG("Response: " + response);
-      http.end();
-      return true;
-    } else if (httpCode >= 400) {
+      LOG("Success: " + response);
+    } else {
       String response = http.getString();
       LOG("Error response: " + response);
     }
   } else {
     LOG("Request failed: " + http.errorToString(httpCode));
-    LOG("Error code: " + String(httpCode));
   }
   
   http.end();
-  return false;
 }
 
 // ========== Response Functions ==========

@@ -6,10 +6,10 @@
 <div class="container mx-auto px-4 py-8 relative">
 
     <!-- Toast Notification Container -->
-    <div class="absolute top-0 right-0 p-4 space-y-2 z-50">
+    <div class="absolute top-0 right-0 p-4 space-y-2 z-50" style="position: fixed; top: 20px; right: 20px; z-index: 9999;">
         <!-- Toast for Validation Errors -->
         @if ($errors->any())
-            <div id="toast-validation-error" class="flex items-center w-full max-w-xs p-4 text-gray-500 bg-white rounded-lg shadow-lg" role="alert">
+            <div id="toast-validation-error" class="flex items-center w-full max-w-xs p-4 text-gray-500 bg-white rounded-lg shadow-lg" role="alert" style="transition: all 0.3s ease-out;">
                 <div class="inline-flex items-center justify-center flex-shrink-0 w-8 h-8 text-red-500 bg-red-100 rounded-lg">
                     <svg class="w-5 h-5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
                         <path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5ZM10 15a1 1 0 1 1 0-2 1 1 0 0 1 0 2Zm1-4a1 1 0 0 1-2 0V6a1 1 0 0 1 2 0v5Z"/>
@@ -24,7 +24,7 @@
                         @endforeach
                     </ul>
                 </div>
-                <button type="button" class="ml-auto -mx-1.5 -my-1.5 bg-white text-gray-400 hover:text-gray-900 rounded-lg focus:ring-2 focus:ring-gray-300 p-1.5 hover:bg-gray-100 inline-flex items-center justify-center h-8 w-8" data-dismiss-target="#toast-validation-error" aria-label="Close">
+                <button type="button" onclick="closeToast('toast-validation-error')" class="ml-auto -mx-1.5 -my-1.5 bg-white text-gray-400 hover:text-gray-900 rounded-lg focus:ring-2 focus:ring-gray-300 p-1.5 hover:bg-gray-100 inline-flex items-center justify-center h-8 w-8" aria-label="Close" style="cursor: pointer;">
                     <span class="sr-only">Close</span>
                     <svg class="w-3 h-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 14">
                         <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6"/>
@@ -35,14 +35,14 @@
 
         <!-- Toast for Success -->
         @if (session('success'))
-            <div id="toast-success" class="flex items-center w-full max-w-xs p-4 mb-4 text-gray-500 bg-white rounded-lg shadow-lg" role="alert">
+            <div id="toast-success" class="flex items-center w-full max-w-xs p-4 mb-4 text-gray-500 bg-white rounded-lg shadow-lg" role="alert" style="transition: all 0.3s ease-out;">
                 <div class="inline-flex items-center justify-center flex-shrink-0 w-8 h-8 text-green-500 bg-green-100 rounded-lg">
                     <svg class="w-5 h-5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
                         <path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5Zm3.707 8.207-4 4a1 1 0 0 1-1.414 0l-2-2a1 1 0 0 1 1.414-1.414L9 10.586l3.293-3.293a1 1 0 0 1 1.414 1.414Z"/>
                     </svg>
                 </div>
                 <div class="ml-3 text-sm font-normal">{{ session('success') }}</div>
-                <button type="button" class="ml-auto -mx-1.5 -my-1.5 bg-white text-gray-400 hover:text-gray-900 rounded-lg focus:ring-2 focus:ring-gray-300 p-1.5 hover:bg-gray-100 inline-flex items-center justify-center h-8 w-8" data-dismiss-target="#toast-success" aria-label="Close">
+                <button type="button" onclick="closeToast('toast-success')" class="ml-auto -mx-1.5 -my-1.5 bg-white text-gray-400 hover:text-gray-900 rounded-lg focus:ring-2 focus:ring-gray-300 p-1.5 hover:bg-gray-100 inline-flex items-center justify-center h-8 w-8" aria-label="Close" style="cursor: pointer;">
                     <span class="sr-only">Close</span>
                     <svg class="w-3 h-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 14">
                         <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6"/>
@@ -53,7 +53,7 @@
 
         <!-- Toast for General Errors -->
         @if (session('error'))
-            <div id="toast-danger" class="flex items-center w-full max-w-xs p-4 mb-4 text-gray-500 bg-white rounded-lg shadow-lg" role="alert">
+            <div id="toast-danger" class="flex items-center w-full max-w-xs p-4 mb-4 text-gray-500 bg-white rounded-lg shadow-lg" role="alert" style="transition: all 0.3s ease-out;">
                 <div class="inline-flex items-center justify-center flex-shrink-0 w-8 h-8 text-red-500 bg-red-100 rounded-lg">
                     <svg class="w-5 h-5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
                         <path d="M10 .5a9.5 9.5 0 1 0 9.5 9.5A9.51 9.51 0 0 0 10 .5ZM10 15a1 1 0 1 1 0-2 1 1 0 0 1 0 2Zm1-4a1 1 0 0 1-2 0V6a1 1 0 0 1 2 0v5Z"/>
@@ -61,7 +61,7 @@
                     <span class="sr-only">Error icon</span>
                 </div>
                 <div class="ml-3 text-sm font-normal">{{ session('error') }}</div>
-                <button type="button" class="ml-auto -mx-1.5 -my-1.5 bg-white text-gray-400 hover:text-gray-900 rounded-lg focus:ring-2 focus:ring-gray-300 p-1.5 hover:bg-gray-100 inline-flex items-center justify-center h-8 w-8" data-dismiss-target="#toast-danger" aria-label="Close">
+                <button type="button" onclick="closeToast('toast-danger')" class="ml-auto -mx-1.5 -my-1.5 bg-white text-gray-400 hover:text-gray-900 rounded-lg focus:ring-2 focus:ring-gray-300 p-1.5 hover:bg-gray-100 inline-flex items-center justify-center h-8 w-8" aria-label="Close" style="cursor: pointer;">
                     <span class="sr-only">Close</span>
                     <svg class="w-3 h-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 14">
                         <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6"/>
@@ -109,14 +109,14 @@
                             @error('nama_siswa') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                         </div>
                         <div>
-                            <label for="nisn" class="block text-sm font-medium text-gray-700 mb-1">NISN <span class="text-red-500">*</span></label>
-                            <input type="number" id="nisn" name="nisn" required maxlength="10" oninput="if(this.value.length > 10) this.value = this.value.slice(0,10);" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" value="{{ old('nisn', $siswa->nisn) }}" placeholder="Nomor Induk Siswa Nasional">
+                            <label for="nisn" class="block text-sm font-medium text-gray-700 mb-1">NISN</label>
+                            <input type="number" id="nisn" name="nisn" maxlength="10" oninput="if(this.value.length > 10) this.value = this.value.slice(0,10);" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" value="{{ old('nisn', $siswa->nisn) }}" placeholder="Nomor Induk Siswa Nasional">
                             <p class="mt-1 text-xs text-gray-500">Masukkan 10 digit NISN</p>
                             @error('nisn') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                         </div>
                         <div>
-                            <label for="tanggal_lahir" class="block text-sm font-medium text-gray-700 mb-1">Tanggal Lahir <span class="text-red-500">*</span></label>
-                            <input type="date" id="tanggal_lahir" name="tanggal_lahir" required class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" value="{{ old('tanggal_lahir', $siswa->tanggal_lahir) }}">
+                            <label for="tanggal_lahir" class="block text-sm font-medium text-gray-700 mb-1">Tanggal Lahir</label>
+                            <input type="date" id="tanggal_lahir" name="tanggal_lahir" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" value="{{ old('tanggal_lahir', $siswa->tanggal_lahir) }}">
                             @error('tanggal_lahir') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                         </div>
                         <div>
@@ -200,8 +200,8 @@
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email <span class="text-red-500">*</span></label>
-                        <input type="email" id="email" name="email" required
+                        <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                        <input type="email" id="email" name="email"
                                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                                value="{{ old('email', $siswa->email) }}" placeholder="email@contoh.com">
                         @error('email')
@@ -210,8 +210,8 @@
                     </div>
 
                     <div>
-                        <label for="no_hp" class="block text-sm font-medium text-gray-700 mb-1">Nomor HP <span class="text-red-500">*</span></label>
-                        <input type="tel" id="no_hp" name="no_hp" required
+                        <label for="no_hp" class="block text-sm font-medium text-gray-700 mb-1">Nomor HP</label>
+                        <input type="tel" id="no_hp" name="no_hp"
                                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                                value="{{ old('no_hp', $siswa->no_hp) }}" placeholder="0812-3456-7890">
                         @error('no_hp')
@@ -220,8 +220,8 @@
                     </div>
 
                     <div class="md:col-span-2">
-                        <label for="alamat" class="block text-sm font-medium text-gray-700 mb-1">Alamat Lengkap <span class="text-red-500">*</span></label>
-                        <textarea id="alamat" name="alamat" rows="3" required class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" placeholder="Jl. Contoh No. 123, Kota/Kabupaten">{{ old('alamat', $siswa->alamat) }}</textarea>
+                        <label for="alamat" class="block text-sm font-medium text-gray-700 mb-1">Alamat Lengkap</label>
+                        <textarea id="alamat" name="alamat" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" placeholder="Jl. Contoh No. 123, Kota/Kabupaten">{{ old('alamat', $siswa->alamat) }}</textarea>
                         @error('alamat') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                     </div>
                 </div>
@@ -311,26 +311,73 @@ function removeImage(index) {
     fotoSiswaInput.dispatchEvent(new Event('change'));
 }
 
-// Auto-dismiss toasts after 5 seconds
-window.setTimeout(function() {
-    const toasts = document.querySelectorAll('[id$="Toast"]');
-    toasts.forEach(toast => {
-        if (toast && !toast.classList.contains('hidden')) {
-            toast.style.transition = 'opacity 0.5s ease-out';
-            toast.style.opacity = '0';
-            setTimeout(() => toast.remove(), 500);
+<script>
+// Simple toast close function
+function closeToast(id) {
+    var toast = document.getElementById(id);
+    if (toast) {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(100px)';
+        setTimeout(function() {
+            toast.remove();
+        }, 300);
+    }
+}
+
+// Auto-hide all toasts after 3 seconds
+setTimeout(function() {
+    var toast1 = document.getElementById('toast-validation-error');
+    var toast2 = document.getElementById('toast-success');
+    var toast3 = document.getElementById('toast-danger');
+    
+    if (toast1) closeToast('toast-validation-error');
+    if (toast2) closeToast('toast-success');
+    if (toast3) closeToast('toast-danger');
+}, 3000);
+
+// Multiple image upload preview
+const fotoSiswaInput = document.getElementById('foto_siswa');
+const imagePreviewContainer = document.getElementById('imagePreviewContainer');
+
+fotoSiswaInput.addEventListener('change', function(e) {
+    const files = Array.from(e.target.files);
+    imagePreviewContainer.innerHTML = '';
+    
+    files.forEach((file, index) => {
+        if (file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                const imgContainer = document.createElement('div');
+                imgContainer.className = 'relative group';
+                imgContainer.innerHTML = `
+                    <img src="${e.target.result}" alt="Preview ${index + 1}" class="w-full h-32 object-cover rounded-lg shadow-sm">
+                    <div class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-lg">
+                        <button type="button" onclick="removeImage(${index})" class="text-white bg-red-600 hover:bg-red-700 rounded-full p-2">
+                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                `;
+                imagePreviewContainer.appendChild(imgContainer);
+            };
+            
+            reader.readAsDataURL(file);
         }
     });
-}, 5000);
+});
 
-// Close toast manually
-function closeToast(id) {
-    const toast = document.getElementById(id);
-    if (toast) {
-        toast.style.transition = 'opacity 0.3s ease-out';
-        toast.style.opacity = '0';
-        setTimeout(() => toast.remove(), 300);
+function removeImage(index) {
+    const dt = new DataTransfer();
+    const files = fotoSiswaInput.files;
+    
+    for (let i = 0; i < files.length; i++) {
+        if (i !== index) dt.items.add(files[i]);
     }
+    
+    fotoSiswaInput.files = dt.files;
+    fotoSiswaInput.dispatchEvent(new Event('change'));
 }
 
 // Confirm delete function

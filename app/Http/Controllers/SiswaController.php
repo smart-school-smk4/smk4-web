@@ -45,16 +45,16 @@ class SiswaController extends Controller
         // Validasi data: 'foto_siswa' sekarang adalah array
         $validator = Validator::make($request->all(), [
             'nama_siswa' => 'required|string|max:255',
-            'nisn' => 'required|numeric|unique:siswa,nisn',
-            'tanggal_lahir' => 'required|date',
+            'nisn' => 'nullable|numeric|unique:siswa,nisn',
+            'tanggal_lahir' => 'nullable|date',
             // Validasi untuk array file
             'foto_siswa' => 'required|array|min:1', // Wajib ada minimal 1 foto
             'foto_siswa.*' => 'required|image|mimes:jpeg,png,jpg|max:2048', // Validasi setiap file dalam array
             // ... (validasi lainnya sama)
             'jenis_kelamin' => 'required|in:L,P',
-            'email' => 'required|email|unique:siswa,email',
-            'no_hp' => 'required|string|max:15',
-            'alamat' => 'required|string',
+            'email' => 'nullable|email|unique:siswa,email',
+            'no_hp' => 'nullable|string|max:15',
+            'alamat' => 'nullable|string',
             'id_kelas' => 'required|exists:kelas,id',
             'id_jurusan' => 'required|exists:jurusan,id',
         ]);
@@ -126,12 +126,12 @@ class SiswaController extends Controller
         $validator = Validator::make($request->all(), [
             'foto_siswa' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
             'nama_siswa' => 'required|string|max:255',
-            'nisn' => 'required|numeric|unique:siswa,nisn,' . $id,
-            'tanggal_lahir' => 'required|date',
+            'nisn' => 'nullable|numeric|unique:siswa,nisn,' . $id,
+            'tanggal_lahir' => 'nullable|date',
             'jenis_kelamin' => 'required|in:L,P',
-            'email' => 'required|email|unique:siswa,email,' . $id,
-            'no_hp' => 'required|string|max:15',
-            'alamat' => 'required|string',
+            'email' => 'nullable|email|unique:siswa,email,' . $id,
+            'no_hp' => 'nullable|string|max:15',
+            'alamat' => 'nullable|string',
             'id_kelas' => 'required|exists:kelas,id',
             'id_jurusan' => 'required|exists:jurusan,id',
         ]);

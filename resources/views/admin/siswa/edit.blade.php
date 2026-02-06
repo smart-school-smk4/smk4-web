@@ -135,7 +135,7 @@
                         </div>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Foto Wajah Siswa (Opsional - Pilih 1-10 foto untuk update)</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Foto Wajah Siswa (Opsional - Pilih 1-15 foto untuk update)</label>
                         <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
                             <div class="space-y-1 text-center">
                                 <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true"><path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
@@ -266,56 +266,11 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
-// Multiple image upload preview
-const fotoSiswaInput = document.getElementById('foto_siswa');
-const imagePreviewContainer = document.getElementById('imagePreviewContainer');
-
-fotoSiswaInput.addEventListener('change', function(e) {
-    const files = Array.from(e.target.files);
-    imagePreviewContainer.innerHTML = '';
-    
-    files.forEach((file, index) => {
-        if (file.type.startsWith('image/')) {
-            const reader = new FileReader();
-            
-            reader.onload = function(e) {
-                const imgContainer = document.createElement('div');
-                imgContainer.className = 'relative group';
-                imgContainer.innerHTML = `
-                    <img src="${e.target.result}" alt="Preview ${index + 1}" class="w-full h-32 object-cover rounded-lg shadow-sm">
-                    <div class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-lg">
-                        <button type="button" onclick="removeImage(${index})" class="text-white bg-red-600 hover:bg-red-700 rounded-full p-2">
-                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                            </svg>
-                        </button>
-                    </div>
-                `;
-                imagePreviewContainer.appendChild(imgContainer);
-            };
-            
-            reader.readAsDataURL(file);
-        }
-    });
-});
-
-function removeImage(index) {
-    const dt = new DataTransfer();
-    const files = fotoSiswaInput.files;
-    
-    for (let i = 0; i < files.length; i++) {
-        if (i !== index) dt.items.add(files[i]);
-    }
-    
-    fotoSiswaInput.files = dt.files;
-    fotoSiswaInput.dispatchEvent(new Event('change'));
-}
-
-<script>
 // Simple toast close function
 function closeToast(id) {
-    var toast = document.getElementById(id);
+    const toast = document.getElementById(id);
     if (toast) {
+        toast.style.transition = 'all 0.3s ease-out';
         toast.style.opacity = '0';
         toast.style.transform = 'translateX(100px)';
         setTimeout(function() {
@@ -324,51 +279,58 @@ function closeToast(id) {
     }
 }
 
-// Auto-hide all toasts after 3 seconds
-setTimeout(function() {
-    var toast1 = document.getElementById('toast-validation-error');
-    var toast2 = document.getElementById('toast-success');
-    var toast3 = document.getElementById('toast-danger');
-    
-    if (toast1) closeToast('toast-validation-error');
-    if (toast2) closeToast('toast-success');
-    if (toast3) closeToast('toast-danger');
-}, 3000);
+// Auto-hide all toasts after 5 seconds
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(function() {
+        const toast1 = document.getElementById('toast-validation-error');
+        const toast2 = document.getElementById('toast-success');
+        const toast3 = document.getElementById('toast-danger');
+        
+        if (toast1) closeToast('toast-validation-error');
+        if (toast2) closeToast('toast-success');
+        if (toast3) closeToast('toast-danger');
+    }, 5000);
+});
 
 // Multiple image upload preview
-const fotoSiswaInput = document.getElementById('foto_siswa');
-const imagePreviewContainer = document.getElementById('imagePreviewContainer');
+document.addEventListener('DOMContentLoaded', function() {
+    const fotoSiswaInput = document.getElementById('foto_siswa');
+    const imagePreviewContainer = document.getElementById('imagePreviewContainer');
 
-fotoSiswaInput.addEventListener('change', function(e) {
-    const files = Array.from(e.target.files);
-    imagePreviewContainer.innerHTML = '';
-    
-    files.forEach((file, index) => {
-        if (file.type.startsWith('image/')) {
-            const reader = new FileReader();
+    if (fotoSiswaInput) {
+        fotoSiswaInput.addEventListener('change', function(e) {
+            const files = Array.from(e.target.files).slice(0, 15);
+            imagePreviewContainer.innerHTML = '';
             
-            reader.onload = function(e) {
-                const imgContainer = document.createElement('div');
-                imgContainer.className = 'relative group';
-                imgContainer.innerHTML = `
-                    <img src="${e.target.result}" alt="Preview ${index + 1}" class="w-full h-32 object-cover rounded-lg shadow-sm">
-                    <div class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-lg">
-                        <button type="button" onclick="removeImage(${index})" class="text-white bg-red-600 hover:bg-red-700 rounded-full p-2">
-                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                            </svg>
-                        </button>
-                    </div>
-                `;
-                imagePreviewContainer.appendChild(imgContainer);
-            };
-            
-            reader.readAsDataURL(file);
-        }
-    });
+            files.forEach((file, index) => {
+                if (file.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    
+                    reader.onload = function(e) {
+                        const imgContainer = document.createElement('div');
+                        imgContainer.className = 'relative group';
+                        imgContainer.innerHTML = `
+                            <img src="${e.target.result}" alt="Preview ${index + 1}" class="w-full h-32 object-cover rounded-lg shadow-sm">
+                            <div class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-lg">
+                                <button type="button" onclick="removeImage(${index})" class="text-white bg-red-600 hover:bg-red-700 rounded-full p-2">
+                                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                        `;
+                        imagePreviewContainer.appendChild(imgContainer);
+                    };
+                    
+                    reader.readAsDataURL(file);
+                }
+            });
+        });
+    }
 });
 
 function removeImage(index) {
+    const fotoSiswaInput = document.getElementById('foto_siswa');
     const dt = new DataTransfer();
     const files = fotoSiswaInput.files;
     

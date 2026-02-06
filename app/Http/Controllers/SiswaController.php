@@ -48,7 +48,7 @@ class SiswaController extends Controller
             'nisn' => 'nullable|numeric|unique:siswa,nisn',
             'tanggal_lahir' => 'nullable|date',
             // Validasi untuk array file
-            'foto_siswa' => 'required|array|min:1', // Wajib ada minimal 1 foto
+            'foto_siswa' => 'required|array|min:1|max:15', // Wajib ada minimal 1 foto, maksimal 15 foto
             'foto_siswa.*' => 'required|image|mimes:jpeg,png,jpg|max:2048', // Validasi setiap file dalam array
             // ... (validasi lainnya sama)
             'jenis_kelamin' => 'required|in:L,P',

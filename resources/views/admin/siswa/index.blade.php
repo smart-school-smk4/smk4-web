@@ -212,16 +212,38 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
-// Hilangkan toast setelah 5 detik
-window.setTimeout(function() {
-    const toastElements = document.querySelectorAll('[id^="toast-"]');
-    toastElements.forEach(function(toast) {
-        const closeButton = toast.querySelector('[data-dismiss-target]');
-        if (closeButton) {
-            closeButton.click();
-        }
+// Fungsi untuk close toast
+function closeToast(toastId) {
+    const toast = document.getElementById(toastId);
+    if (toast) {
+        toast.style.transition = 'all 0.3s ease-out';
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(100px)';
+        setTimeout(function() {
+            toast.remove();
+        }, 300);
+    }
+}
+
+// Event listener untuk tombol close manual
+document.addEventListener('DOMContentLoaded', function() {
+    // Attach event listeners ke semua tombol close
+    const closeButtons = document.querySelectorAll('[data-dismiss-target]');
+    closeButtons.forEach(function(button) {
+        button.addEventListener('click', function() {
+            const targetId = this.getAttribute('data-dismiss-target').replace('#', '');
+            closeToast(targetId);
+        });
     });
-}, 5000);
+    
+    // Auto-hide toast setelah 5 detik
+    setTimeout(function() {
+        const toastElements = document.querySelectorAll('[id^="toast-"]');
+        toastElements.forEach(function(toast) {
+            closeToast(toast.id);
+        });
+    }, 5000);
+});
 
 // Konfirmasi hapus dengan SweetAlert2
 function confirmDelete(id, name) {

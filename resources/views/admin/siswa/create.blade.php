@@ -116,7 +116,7 @@
                         </div>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Foto Wajah Siswa (Pilih 1-10 foto) <span class="text-red-500">*</span></label>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Foto Wajah Siswa (Pilih 1-15 foto) <span class="text-red-500">*</span></label>
                         <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
                             <div class="space-y-1 text-center">
                                 <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true"><path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
@@ -212,37 +212,44 @@
 
 <script>
 // Script untuk menampilkan preview dari banyak gambar
-document.getElementById('foto_siswa').addEventListener('change', function(e) {
+document.addEventListener('DOMContentLoaded', function() {
+    const fotoInput = document.getElementById('foto_siswa');
     const previewContainer = document.getElementById('imagePreviewContainer');
-    previewContainer.innerHTML = ''; // Bersihkan preview lama setiap kali ada perubahan
+    
+    if (fotoInput) {
+        fotoInput.addEventListener('change', function(e) {
+            previewContainer.innerHTML = ''; // Bersihkan preview lama setiap kali ada perubahan
 
-    if (this.files) {
-        const filesToShow = Array.from(this.files).slice(0, 10);
-        filesToShow.forEach(file => {
-            const reader = new FileReader();
-            reader.onload = function(event) {
-                const wrapper = document.createElement('div');
-                wrapper.className = 'relative w-full h-32 rounded-lg overflow-hidden shadow-sm border';
-                const img = document.createElement('img');
-                img.src = event.target.result;
-                img.className = 'w-full h-full object-cover';
-                img.alt = file.name;
-                const caption = document.createElement('div');
-                caption.className = 'absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-1 truncate';
-                caption.textContent = file.name;
-                wrapper.appendChild(img);
-                wrapper.appendChild(caption);
-                previewContainer.appendChild(wrapper);
+            if (this.files) {
+                const filesToShow = Array.from(this.files).slice(0, 15);
+                filesToShow.forEach(file => {
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        const wrapper = document.createElement('div');
+                        wrapper.className = 'relative w-full h-32 rounded-lg overflow-hidden shadow-sm border';
+                        const img = document.createElement('img');
+                        img.src = event.target.result;
+                        img.className = 'w-full h-full object-cover';
+                        img.alt = file.name;
+                        const caption = document.createElement('div');
+                        caption.className = 'absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-1 truncate';
+                        caption.textContent = file.name;
+                        wrapper.appendChild(img);
+                        wrapper.appendChild(caption);
+                        previewContainer.appendChild(wrapper);
+                    }
+                    reader.readAsDataURL(file);
+                });
             }
-            reader.readAsDataURL(file);
         });
     }
 });
 
 // Simple toast close function
 function closeToast(id) {
-    var toast = document.getElementById(id);
+    const toast = document.getElementById(id);
     if (toast) {
+        toast.style.transition = 'all 0.3s ease-out';
         toast.style.opacity = '0';
         toast.style.transform = 'translateX(100px)';
         setTimeout(function() {
@@ -251,14 +258,15 @@ function closeToast(id) {
     }
 }
 
-// Auto-hide all toasts after 3 seconds
-setTimeout(function() {
-    var toast1 = document.getElementById('toast-validation-error');
-    var toast2 = document.getElementById('toast-danger');
-    
-    if (toast1) closeToast('toast-validation-error');
-    if (toast2) closeToast('toast-danger');
-}, 3000);
-
+// Auto-hide all toasts after 5 seconds
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(function() {
+        const toast1 = document.getElementById('toast-validation-error');
+        const toast2 = document.getElementById('toast-danger');
+        
+        if (toast1) closeToast('toast-validation-error');
+        if (toast2) closeToast('toast-danger');
+    }, 5000);
+});
 </script>
 @endsection

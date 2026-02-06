@@ -36,14 +36,25 @@
             </div>
         </div>
         <div>
-            <h3 class="font-semibold text-gray-700 mb-2">Foto Wajah Lainnya</h3>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                @if($siswa->fotos && $siswa->fotos->count() > 1)
-                    @foreach($siswa->fotos->slice(1) as $foto)
-                        <img src="{{ asset('storage/' . $foto->path) }}" class="w-full h-24 object-cover rounded-lg shadow" alt="Foto Siswa">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="font-semibold text-gray-700">Semua Foto Wajah</h3>
+                @if($siswa->fotos && $siswa->fotos->count() > 0)
+                    <span class="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+                        {{ $siswa->fotos->count() }} Foto
+                    </span>
+                @endif
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                @if($siswa->fotos && $siswa->fotos->count() > 0)
+                    @foreach($siswa->fotos as $index => $foto)
+                        <div class="relative group">
+                            <img src="{{ asset('storage/' . $foto->path) }}" 
+                                 class="w-full h-32 object-cover rounded-lg shadow-md hover:shadow-xl transition duration-200" 
+                                 alt="Foto {{ $index + 1 }}">
+                        </div>
                     @endforeach
                 @else
-                    <div class="text-gray-400 col-span-2">Tidak ada foto tambahan.</div>
+                    <div class="text-gray-400 col-span-2">Tidak ada foto.</div>
                 @endif
             </div>
         </div>

@@ -17,12 +17,37 @@ class SiswaController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $siswa = Siswa::with(['kelas', 'jurusan'])->latest()->get();
-        $siswa = Siswa::paginate(10);
+        // Mulai query dengan eager loading
+        $query = Siswa::with(['kelas', 'jurusan', 'fotos']);
+        
+        // Filter berdasarkan search (nama siswa atau NISN)
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('nama_siswa', 'like', '%' . $search . '%')
+                  ->orWhere('nisn', 'like', '%' . $search . '%');
+            });
+        }
+        
+        // Filter berdasarkan kelas
+        if ($request->filled('kelas')) {
+            $query->where('id_kelas', $request->kelas);
+        }
+        
+        // Filter berdasarkan jurusan
+        if ($request->filled('jurusan')) {
+            $query->where('id_jurusan', $request->jurusan);
+        }
+        
+        // Ambil data dengan pagination
+        $siswa = $query->latest()->paginate(10);
+        
+        // Data untuk dropdown filter
         $kelas = Kelas::all(); 
         $jurusan = Jurusan::all(); 
+        
         return view('admin.siswa.index', compact('siswa', 'kelas', 'jurusan'));
     }
 

@@ -111,7 +111,9 @@
                                             <th class="px-6 py-4">Jurusan</th>
                                             <th class="px-6 py-4">Kelas</th>
                                             <th class="px-6 py-4">Waktu Masuk</th>
+                                            <th class="px-6 py-4">Foto Masuk</th>
                                             <th class="px-6 py-4">Waktu Keluar</th>
+                                            <th class="px-6 py-4">Foto Keluar</th>
                                             <th class="px-6 py-4">Ruangan</th>
                                             <th class="px-6 py-4">Status</th>
                                             <th class="px-6 py-4 rounded-r-lg">Status Pulang</th>
@@ -119,7 +121,7 @@
                                     </thead>
                                     <tbody id="attendance-table-body">
                                         <tr class="animate-pulse">
-                                            <td colspan="9" class="p-8 text-center">
+                                            <td colspan="11" class="p-8 text-center">
                                                 <div class="flex items-center justify-center gap-3 text-gray-500">
                                                     <div
                                                         class="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin">
@@ -169,6 +171,34 @@
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal untuk zoom foto -->
+    <div id="fotoModal" class="hidden fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4"
+        onclick="closeFotoModal()">
+        <div class="relative max-w-4xl w-full bg-white rounded-2xl shadow-2xl" onclick="event.stopPropagation()">
+            <div class="bg-gradient-to-r from-blue-500 to-purple-500 p-4 rounded-t-2xl flex items-center justify-between">
+                <h3 id="fotoModalLabel" class="text-xl font-bold text-white flex items-center gap-2">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z">
+                        </path>
+                    </svg>
+                    Foto Wajah
+                </h3>
+                <button onclick="closeFotoModal()"
+                    class="text-white hover:text-gray-200 transition-colors p-2 hover:bg-white hover:bg-opacity-20 rounded-lg">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                        </path>
+                    </svg>
+                </button>
+            </div>
+            <div class="p-6 text-center">
+                <img id="modalFotoImage" src="" alt="Foto Wajah"
+                    class="max-w-full max-h-[70vh] mx-auto rounded-xl shadow-lg border-4 border-gray-100">
             </div>
         </div>
     </div>
@@ -267,11 +297,6 @@
                 const kelasId = document.getElementById('kelas').value;
                 const deviceId = deviceSelect.value;
 
-                // Mendapatkan tanggal hari ini untuk label
-                const today = new Date();
-                const todayString = today.toISOString().split('T')[0];
-                laporanTitle.innerText = `Laporan Kehadiran ${formatIndonesianDate(todayString)}`;
-
                 // === PERBAIKAN DI SINI ===
                 // Menambahkan parameter acak (_=timestamp) untuk mencegah browser caching
                 const cacheBuster = `&_=${new Date().getTime()}`;
@@ -283,7 +308,20 @@
                         cache: 'no-store'
                     }); // Menambahkan opsi untuk mencegah cache
                     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                    const data = await response.json();
+                    const result = await response.json();
+                    
+                    // Update label tanggal berdasarkan tanggal server saat ini (bukan dari data)
+                    if (result.current_date) {
+                        laporanTitle.innerText = `Laporan Kehadiran ${formatIndonesianDate(result.current_date)}`;
+                    } else {
+                        // Fallback untuk backward compatibility
+                        const today = new Date();
+                        const todayString = today.toISOString().split('T')[0];
+                        laporanTitle.innerText = `Laporan Kehadiran ${formatIndonesianDate(todayString)}`;
+                    }
+                    
+                    // Render table dengan data dari response
+                    const data = result.data || result; // Support both old and new format
                     renderTable(data);
                 } catch (error) {
                     console.error('Error fetching data:', error);
@@ -297,7 +335,7 @@
                 if (data.length === 0) {
                     tableBody.innerHTML = `
                         <tr>
-                            <td colspan="9" class="p-8 text-center">
+                            <td colspan="11" class="p-8 text-center">
                                 <div class="flex flex-col items-center space-y-3 text-gray-500">
                                     <svg class="w-16 h-16 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
@@ -344,6 +382,34 @@
                             `<span class="inline-flex items-center px-3 py-1 font-semibold text-sm leading-tight text-orange-800 bg-orange-100 rounded-full border border-orange-200"><svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"></path></svg>Belum Pulang</span>`;
                     }
 
+                    // Foto Masuk
+                    let fotoMasukHtml = '-';
+                    if (item.foto_wajah) {
+                        fotoMasukHtml = `
+                            <img 
+                                src="${item.foto_wajah}" 
+                                alt="Foto Masuk" 
+                                class="w-14 h-14 rounded-lg object-cover cursor-pointer border-2 border-blue-200 hover:border-blue-400 transition-all hover:scale-110 shadow-md mx-auto"
+                                onclick="showFotoModal('${item.foto_wajah}', '${item.nama_siswa}', 'Masuk')"
+                                onerror="this.onerror=null; this.src='data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 fill=%27none%27 viewBox=%270 0 24 24%27 stroke=%27%23CBD5E0%27%3E%3Cpath stroke-linecap=%27round%27 stroke-linejoin=%27round%27 stroke-width=%272%27 d=%27M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z%27/%3E%3C/svg%3E';"
+                            >
+                        `;
+                    }
+
+                    // Foto Keluar
+                    let fotoKeluarHtml = '-';
+                    if (item.foto_wajah_keluar) {
+                        fotoKeluarHtml = `
+                            <img 
+                                src="${item.foto_wajah_keluar}" 
+                                alt="Foto Keluar" 
+                                class="w-14 h-14 rounded-lg object-cover cursor-pointer border-2 border-purple-200 hover:border-purple-400 transition-all hover:scale-110 shadow-md mx-auto"
+                                onclick="showFotoModal('${item.foto_wajah_keluar}', '${item.nama_siswa}', 'Keluar')"
+                                onerror="this.onerror=null; this.src='data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 fill=%27none%27 viewBox=%270 0 24 24%27 stroke=%27%23CBD5E0%27%3E%3Cpath stroke-linecap=%27round%27 stroke-linejoin=%27round%27 stroke-width=%272%27 d=%27M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z%27/%3E%3C/svg%3E';"
+                            >
+                        `;
+                    }
+
                     const row = `
                         <tr class="bg-white border-b border-gray-100 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 transition-all duration-200 ${index % 2 === 0 ? 'bg-gray-50/50' : ''}">
                             <td class="px-6 py-4 font-bold text-gray-900">${item.no}</td>
@@ -351,7 +417,9 @@
                             <td class="px-6 py-4 text-gray-600">${item.jurusan}</td>
                             <td class="px-6 py-4 text-gray-600">${item.kelas}</td>
                             <td class="px-6 py-4 font-mono text-sm text-gray-800">${item.waktu_masuk}</td>
+                            <td class="px-6 py-4 text-center">${fotoMasukHtml}</td>
                             <td class="px-6 py-4 font-mono text-sm text-gray-800">${item.waktu_keluar}</td>
+                            <td class="px-6 py-4 text-center">${fotoKeluarHtml}</td>
                             <td class="px-6 py-4 text-gray-600">${item.ruangan}</td>
                             <td class="px-6 py-4">${statusBadge}</td>
                             <td class="px-6 py-4">${statusPulangBadge}</td>
@@ -396,6 +464,34 @@
             });
 
             startAutoRefresh();
+        });
+
+        // Fungsi untuk menampilkan modal foto
+        function showFotoModal(imageSrc, siswaName, type) {
+            document.getElementById('modalFotoImage').src = imageSrc;
+            document.getElementById('fotoModalLabel').innerHTML = `
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z">
+                    </path>
+                </svg>
+                Foto Wajah ${type} - ${siswaName}
+            `;
+            document.getElementById('fotoModal').classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+
+        // Fungsi untuk menutup modal foto
+        function closeFotoModal() {
+            document.getElementById('fotoModal').classList.add('hidden');
+            document.body.style.overflow = 'auto';
+        }
+
+        // Close modal dengan tombol ESC
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeFotoModal();
+            }
         });
     </script>
 @endsection

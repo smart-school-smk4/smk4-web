@@ -80,16 +80,22 @@ class AbsensiSiswaController extends Controller
                 'nama_siswa'   => $item->siswa->nama_siswa ?? '-',
                 'jurusan'      => $item->siswa->jurusan->nama_jurusan ?? '-',
                 'kelas'        => $item->siswa->kelas->nama_kelas ?? '-',
+                'tanggal'      => $item->tanggal ? Carbon::parse($item->tanggal)->format('Y-m-d') : Carbon::today()->format('Y-m-d'),
                 'waktu_masuk'  => $item->waktu_masuk ? Carbon::parse($item->waktu_masuk)->format('H:i:s') : '-',
                 'waktu_keluar' => $item->waktu_keluar ? Carbon::parse($item->waktu_keluar)->format('H:i:s') : '-',
                 'ruangan'      => $item->devices->nama_device ?? '-',
                 'status'       => $item->status,
                 'status_pulang' => $item->waktu_keluar ? 'sudah_pulang' : 'belum_pulang',
                 'keterangan'   => $item->keterangan ?? '-',
+                'foto_wajah'   => $item->foto_wajah ? asset('storage/' . $item->foto_wajah) : null,
+                'foto_wajah_keluar' => $item->foto_wajah_keluar ? asset('storage/' . $item->foto_wajah_keluar) : null,
             ];
         });
 
-        return response()->json($result);
+        return response()->json([
+            'current_date' => Carbon::today()->format('Y-m-d'),
+            'data' => $result
+        ]);
     }
 
     /**
@@ -101,12 +107,50 @@ class AbsensiSiswaController extends Controller
             'id_siswa'   => 'required|exists:siswa,id',
             'id_devices' => 'required|exists:devices,id',
             'type'       => 'required|in:masuk,keluar', // masuk atau keluar
+            'foto_wajah' => 'nullable|string', // Base64 string dari Python
         ]);
 
         $tanggal   = Carbon::today();
         $siswaId   = $request->id_siswa;
         $devicesId = $request->id_devices;
         $type      = $request->type;
+
+        // Process foto wajah jika ada
+        $fotoPath = null;
+        if ($request->has('foto_wajah') && !empty($request->foto_wajah)) {
+            try {
+                // Decode base64 (handle both with and without data:image prefix)
+                $imageData = $request->foto_wajah;
+                if (strpos($imageData, 'data:image') === 0) {
+                    $imageData = substr($imageData, strpos($imageData, ',') + 1);
+                }
+                $imageData = base64_decode($imageData);
+                
+                // Validasi apakah hasil decode valid
+                if ($imageData === false) {
+                    throw new \Exception('Invalid base64 string');
+                }
+                
+                // Generate unique filename
+                $filename = sprintf(
+                    'face_%d_%s_%s.jpg',
+                    $siswaId,
+                    $type,
+                    now()->format('Ymd_His')
+                );
+                
+                // Simpan ke storage/app/public/faces
+                \Storage::disk('public')->put('faces/' . $filename, $imageData);
+                
+                $fotoPath = 'faces/' . $filename;
+                
+                \Log::info("Foto wajah disimpan: {$fotoPath}");
+                
+            } catch (\Exception $e) {
+                \Log::error('Gagal simpan foto wajah: ' . $e->getMessage());
+                // Tetap lanjut simpan absensi tanpa foto
+            }
+        }
 
         // Cek apakah sudah ada record absensi untuk siswa hari ini
         $absensi = AbsensiSiswa::where('id_siswa', $siswaId)
@@ -135,12 +179,14 @@ class AbsensiSiswaController extends Controller
                     'tanggal'     => $tanggal,
                     'waktu_masuk' => $now,
                     'status'      => $status,
+                    'foto_wajah'  => $fotoPath,
                 ]);
 
                 return response()->json([
                     'success' => true,
                     'message' => 'Absensi masuk berhasil dicatat',
                     'data'    => $absensi,
+                    'foto_saved' => $fotoPath !== null,
                 ]);
             } else {
                 return response()->json([
@@ -178,10 +224,12 @@ class AbsensiSiswaController extends Controller
                 $absensi->update([
                     'waktu_masuk' => $now,
                     'status'      => $status,
+                    'foto_wajah'  => $fotoPath,
                 ]);
             } else {
                 $absensi->update([
                     'waktu_keluar' => $now,
+                    'foto_wajah_keluar' => $fotoPath,
                 ]);
             }
 
@@ -189,6 +237,7 @@ class AbsensiSiswaController extends Controller
                 'success' => true,
                 'message' => "Absensi {$type} berhasil dicatat",
                 'data'    => $absensi,
+                'foto_saved' => $fotoPath !== null,
             ]);
         }
     }

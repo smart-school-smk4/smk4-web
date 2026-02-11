@@ -232,7 +232,9 @@
                                 <th class="px-6 py-4 text-left text-sm font-semibold">Jurusan</th>
                                 <th class="px-6 py-4 text-left text-sm font-semibold">Tanggal</th>
                                 <th class="px-6 py-4 text-left text-sm font-semibold">Waktu Masuk</th>
+                                <th class="px-6 py-4 text-center text-sm font-semibold">Foto Masuk</th>
                                 <th class="px-6 py-4 text-left text-sm font-semibold">Waktu Keluar</th>
+                                <th class="px-6 py-4 text-center text-sm font-semibold">Foto Keluar</th>
                                 <th class="px-6 py-4 text-left text-sm font-semibold">Status</th>
                                 <th class="px-6 py-4 text-left text-sm font-semibold">Status Pulang</th>
                                 <th class="px-6 py-4 text-left text-sm font-semibold">Keterangan</th>
@@ -252,12 +254,38 @@
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                         {{ $data->siswa->jurusan->nama_jurusan ?? '-' }}</td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        {{ \Carbon\Carbon::parse($data->waktu)->format('d/m/Y') }}</td>
+                                        {{ \Carbon\Carbon::parse($data->tanggal)->format('d/m/Y') }}</td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                         {{ $data->waktu_masuk ? \Carbon\Carbon::parse($data->waktu_masuk)->format('H:i:s') : '-' }}
                                     </td>
+                                    <td class="px-6 py-4 text-center">
+                                        @if($data->foto_wajah)
+                                            <img 
+                                                src="{{ asset('storage/' . $data->foto_wajah) }}" 
+                                                alt="Foto Masuk" 
+                                                class="w-12 h-12 rounded-lg object-cover cursor-pointer border-2 border-blue-200 hover:border-blue-400 transition-all hover:scale-110 shadow-md mx-auto"
+                                                onclick="showFotoModal('{{ asset('storage/' . $data->foto_wajah) }}', '{{ $data->siswa->nama_siswa ?? 'Unknown' }}', 'Masuk')"
+                                                onerror="this.onerror=null; this.src='data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 fill=%27none%27 viewBox=%270 0 24 24%27 stroke=%27%23CBD5E0%27%3E%3Cpath stroke-linecap=%27round%27 stroke-linejoin=%27round%27 stroke-width=%272%27 d=%27M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z%27/%3E%3C/svg%3E';"
+                                            >
+                                        @else
+                                            <span class="text-gray-400 text-xs">-</span>
+                                        @endif
+                                    </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                         {{ $data->waktu_keluar ? \Carbon\Carbon::parse($data->waktu_keluar)->format('H:i:s') : '-' }}
+                                    </td>
+                                    <td class="px-6 py-4 text-center">
+                                        @if($data->foto_wajah_keluar)
+                                            <img 
+                                                src="{{ asset('storage/' . $data->foto_wajah_keluar) }}" 
+                                                alt="Foto Keluar" 
+                                                class="w-12 h-12 rounded-lg object-cover cursor-pointer border-2 border-purple-200 hover:border-purple-400 transition-all hover:scale-110 shadow-md mx-auto"
+                                                onclick="showFotoModal('{{ asset('storage/' . $data->foto_wajah_keluar) }}', '{{ $data->siswa->nama_siswa ?? 'Unknown' }}', 'Keluar')"
+                                                onerror="this.onerror=null; this.src='data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 fill=%27none%27 viewBox=%270 0 24 24%27 stroke=%27%23CBD5E0%27%3E%3Cpath stroke-linecap=%27round%27 stroke-linejoin=%27round%27 stroke-width=%272%27 d=%27M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z%27/%3E%3C/svg%3E';"
+                                            >
+                                        @else
+                                            <span class="text-gray-400 text-xs">-</span>
+                                        @endif
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap">
                                         @if ($data->status == 'hadir')
@@ -312,7 +340,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="11" class="px-6 py-12 text-center">
+                                    <td colspan="13" class="px-6 py-12 text-center">
                                         <div class="flex flex-col items-center justify-center">
                                             <i class="fas fa-inbox text-6xl text-gray-300 mb-4"></i>
                                             <h3 class="text-lg font-medium text-gray-900 mb-2">Tidak ada data absensi</h3>
@@ -343,9 +371,65 @@
             </div>
         </div>
     </div>
+    <!-- Modal untuk zoom foto -->
+    <div id="fotoModal" class="hidden fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4"
+        onclick="closeFotoModal()">
+        <div class="relative max-w-4xl w-full bg-white rounded-2xl shadow-2xl" onclick="event.stopPropagation()">
+            <div class="bg-gradient-to-r from-blue-500 to-purple-500 p-4 rounded-t-2xl flex items-center justify-between">
+                <h3 id="fotoModalLabel" class="text-xl font-bold text-white flex items-center gap-2">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z">
+                        </path>
+                    </svg>
+                    Foto Wajah
+                </h3>
+                <button onclick="closeFotoModal()"
+                    class="text-white hover:text-gray-200 transition-colors p-2 hover:bg-white hover:bg-opacity-20 rounded-lg">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                        </path>
+                    </svg>
+                </button>
+            </div>
+            <div class="p-6 text-center">
+                <img id="modalFotoImage" src="" alt="Foto Wajah"
+                    class="max-w-full max-h-[70vh] mx-auto rounded-xl shadow-lg border-4 border-gray-100">
+            </div>
+        </div>
+    </div>
 @endsection
 
 @push('scripts')
+    <script>
+        // Fungsi untuk menampilkan modal foto
+        function showFotoModal(imageSrc, siswaName, type) {
+            document.getElementById('modalFotoImage').src = imageSrc;
+            document.getElementById('fotoModalLabel').innerHTML = `
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z">
+                    </path>
+                </svg>
+                Foto Wajah ${type} - ${siswaName}
+            `;
+            document.getElementById('fotoModal').classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+
+        // Fungsi untuk menutup modal foto
+        function closeFotoModal() {
+            document.getElementById('fotoModal').classList.add('hidden');
+            document.body.style.overflow = 'auto';
+        }
+
+        // Close modal dengan tombol ESC
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeFotoModal();
+            }
+        });
+    </script>
     <script>
         $(document).ready(function() {
             // Auto submit form when filter changes (optional)

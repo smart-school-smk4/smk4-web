@@ -19,6 +19,8 @@ class AbsensiSiswa extends Model
         'waktu_keluar',
         'status',
         'keterangan',
+        'foto_wajah',
+        'foto_wajah_keluar',
     ];
 
     protected $casts = [

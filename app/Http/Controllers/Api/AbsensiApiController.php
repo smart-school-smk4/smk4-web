@@ -31,6 +31,7 @@ class AbsensiApiController extends Controller
                 'id_devices' => 'required_without:devices_id|integer|exists:devices,id',
                 'devices_id' => 'required_without:id_devices|integer|exists:devices,id',
                 'type'       => 'sometimes|string|in:masuk,keluar',
+                'foto_wajah' => 'nullable|string', // Base64 string dari Python
             ]);
 
             $siswaId   = $request->id_siswa;
@@ -41,8 +42,47 @@ class AbsensiApiController extends Controller
             Log::info('Validated Data:', [
                 'siswa_id' => $siswaId,
                 'devices_id' => $devicesId,
-                'type' => $type
+                'type' => $type,
+                'has_foto' => $request->has('foto_wajah')
             ]);
+
+            // Process foto wajah jika ada
+            $fotoPath = null;
+            if ($request->has('foto_wajah') && !empty($request->foto_wajah)) {
+                try {
+                    // Decode base64 (handle both with and without data:image prefix)
+                    $imageData = $request->foto_wajah;
+                    if (strpos($imageData, 'data:image') === 0) {
+                        $imageData = substr($imageData, strpos($imageData, ',') + 1);
+                    }
+                    $imageData = base64_decode($imageData);
+                    
+                    // Validasi apakah hasil decode valid
+                    if ($imageData === false) {
+                        throw new \Exception('Invalid base64 string');
+                    }
+                    
+                    // Generate unique filename
+                    $filename = sprintf(
+                        'face_%d_%s_%s.jpg',
+                        $siswaId,
+                        $type,
+                        now()->format('Ymd_His')
+                    );
+                    
+                    // Simpan ke storage/app/public/faces
+                    \Storage::disk('public')->put('faces/' . $filename, $imageData);
+                    
+                    $fotoPath = 'faces/' . $filename;
+                    
+                    Log::info("Foto wajah disimpan: {$fotoPath}");
+                    
+                } catch (\Exception $e) {
+                    Log::error('Gagal simpan foto wajah: ' . $e->getMessage());
+                    // Tetap lanjut simpan absensi tanpa foto
+                }
+            }
+
             $tanggal   = Carbon::today();
             $now       = Carbon::now();
 
@@ -64,6 +104,7 @@ class AbsensiApiController extends Controller
                         'tanggal'     => $tanggal,
                         'waktu_masuk' => $now,
                         'status'      => $status,
+                        'foto_wajah'  => $fotoPath,
                     ]);
 
                     Log::info('New attendance record created:', $absensi->toArray());
@@ -77,6 +118,7 @@ class AbsensiApiController extends Controller
                             'waktu_masuk' => $absensi->waktu_masuk->format('Y-m-d H:i:s'),
                             'status'      => $absensi->status,
                         ],
+                        'foto_saved' => $fotoPath !== null,
                     ]);
                     
                     Log::info('=== ABSENSI SUCCESS ===');
@@ -108,6 +150,7 @@ class AbsensiApiController extends Controller
                         'waktu_masuk' => $now,
                         'status'      => $status,
                         'id_devices'  => $devicesId, // Update device yang digunakan
+                        'foto_wajah'  => $fotoPath,
                     ]);
 
                     Log::info('Attendance check-in updated:', $absensi->toArray());
@@ -121,6 +164,7 @@ class AbsensiApiController extends Controller
                             'waktu_masuk' => $absensi->waktu_masuk->format('Y-m-d H:i:s'),
                             'status'      => $absensi->status,
                         ],
+                        'foto_saved' => $fotoPath !== null,
                     ]);
                 } else {
                     // Absen keluar
@@ -143,6 +187,7 @@ class AbsensiApiController extends Controller
 
                     $absensi->update([
                         'waktu_keluar' => $now,
+                        'foto_wajah_keluar' => $fotoPath,
                     ]);
 
                     Log::info('Attendance check-out updated:', $absensi->toArray());
@@ -157,6 +202,7 @@ class AbsensiApiController extends Controller
                             'waktu_keluar' => $absensi->waktu_keluar->format('Y-m-d H:i:s'),
                             'status'       => $absensi->status,
                         ],
+                        'foto_saved' => $fotoPath !== null,
                     ]);
                 }
             }

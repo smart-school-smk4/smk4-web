@@ -19,34 +19,22 @@ class AbsensiSiswaController extends Controller
         // Mulai query builder
         $query = AbsensiSiswa::with(['siswa.jurusan', 'siswa.kelas', 'devices']);
 
-        // 1. Filter berdasarkan Tanggal
-        if ($request->filled('tanggal')) {
-            $query->whereDate('tanggal', $request->tanggal);
-        } else {
-            // Default jika tidak ada filter tanggal: hari ini
-            $query->whereDate('tanggal', Carbon::today());
-        }
+        // Filter berdasarkan Tanggal: Selalu menggunakan hari ini
+        $query->whereDate('tanggal', Carbon::today());
 
-        // 2. Filter berdasarkan Jurusan
-        if ($request->filled('jurusan_id') && $request->jurusan_id != 'all') {
-            $query->whereHas('siswa', function ($q) use ($request) {
-                $q->where('id_jurusan', $request->jurusan_id);
-            });
-        }
-
-        // 3. Filter berdasarkan Kelas
+        // Filter berdasarkan Kelas
         if ($request->filled('kelas_id') && $request->kelas_id != 'all') {
             $query->whereHas('siswa', function ($q) use ($request) {
                 $q->where('id_kelas', $request->kelas_id);
             });
         }
 
-        // 4. Filter berdasarkan Device
+        // Filter berdasarkan Device (Ruangan)
         if ($request->filled('device_id') && $request->device_id != 'all') {
             $query->where('id_devices', $request->device_id);
         }
 
-        // 5. Filter berdasarkan status absensi
+        // Filter berdasarkan status absensi
         if ($request->filled('status') && $request->status != 'all') {
             $query->where('status', $request->status);
         }
@@ -55,11 +43,10 @@ class AbsensiSiswaController extends Controller
         $absensi = $query->latest('waktu_masuk')->get();
 
         // Data untuk mengisi dropdown filter
-        $jurusans = Jurusan::orderBy('nama_jurusan')->get();
         $kelases  = Kelas::orderBy('nama_kelas')->get();
         $devices  = Devices::orderBy('nama_device')->get();
 
-        return view('admin.presensi.siswa', compact('absensi', 'jurusans', 'kelases', 'devices'));
+        return view('admin.presensi.siswa', compact('absensi', 'kelases', 'devices'));
     }
 
     /**
@@ -69,26 +56,17 @@ class AbsensiSiswaController extends Controller
     {
         $query = AbsensiSiswa::with(['siswa.jurusan', 'siswa.kelas', 'devices']);
 
-        // Filter berdasarkan tanggal
-        if ($request->filled('tanggal')) {
-            $query->whereDate('tanggal', $request->tanggal);
-        } else {
-            $query->whereDate('tanggal', Carbon::today());
-        }
+        // Filter berdasarkan tanggal: Selalu menggunakan hari ini
+        $query->whereDate('tanggal', Carbon::today());
 
-        // Filter lainnya
-        if ($request->filled('jurusan_id') && $request->jurusan_id != 'all') {
-            $query->whereHas('siswa', function ($q) use ($request) {
-                $q->where('id_jurusan', $request->jurusan_id);
-            });
-        }
-
+        // Filter berdasarkan Kelas
         if ($request->filled('kelas_id') && $request->kelas_id != 'all') {
             $query->whereHas('siswa', function ($q) use ($request) {
                 $q->where('id_kelas', $request->kelas_id);
             });
         }
 
+        // Filter berdasarkan Device (Ruangan)
         if ($request->filled('device_id') && $request->device_id != 'all') {
             $query->where('id_devices', $request->device_id);
         }

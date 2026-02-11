@@ -41,27 +41,7 @@
                             </div>
                             <h2 class="text-2xl font-bold text-gray-800">Filter Data</h2>
                         </div>
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                            <!-- Filter Jurusan -->
-                            <div class="group">
-                                <label for="jurusan"
-                                    class="block text-sm font-semibold text-gray-700 mb-2 group-hover:text-blue-600 transition-colors">
-                                    <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor"
-                                        viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4">
-                                        </path>
-                                    </svg>
-                                    Jurusan
-                                </label>
-                                <select id="jurusan"
-                                    class="filter-input w-full p-3 border-2 border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white hover:border-gray-300">
-                                    <option value="all">Semua Jurusan</option>
-                                    @foreach ($jurusans as $jurusan)
-                                        <option value="{{ $jurusan->id }}">{{ $jurusan->nama_jurusan }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <!-- Filter Kelas -->
                             <div class="group">
                                 <label for="kelas"
@@ -82,42 +62,27 @@
                                     @endforeach
                                 </select>
                             </div>
-                            <!-- Filter Device -->
+                            <!-- Filter Ruangan (Device) -->
                             <div class="group">
                                 <label for="device"
                                     class="block text-sm font-semibold text-gray-700 mb-2 group-hover:text-blue-600 transition-colors">
                                     <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor"
                                         viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z">
+                                            d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4">
                                         </path>
                                     </svg>
-                                    Device
+                                    Ruangan
                                 </label>
                                 <select id="device"
                                     class="filter-input w-full p-3 border-2 border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white hover:border-gray-300">
-                                    <option value="all" data-ip="">Semua Device</option>
+                                    <option value="all" data-ip="">Semua Ruangan</option>
                                     @foreach ($devices as $device)
                                         <option value="{{ $device->id }}" data-ip="{{ $device->ip_address }}">
                                             {{ $device->nama_device }}
                                         </option>
                                     @endforeach
                                 </select>
-                            </div>
-                            <!-- Filter Tanggal -->
-                            <div class="group">
-                                <label for="tanggal"
-                                    class="block text-sm font-semibold text-gray-700 mb-2 group-hover:text-blue-600 transition-colors">
-                                    <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor"
-                                        viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z">
-                                        </path>
-                                    </svg>
-                                    Tanggal
-                                </label>
-                                <input type="date" id="tanggal" value="{{ date('Y-m-d') }}"
-                                    class="filter-input w-full p-3 border-2 border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white hover:border-gray-300">
                             </div>
                         </div>
                     </div>
@@ -299,18 +264,19 @@
             };
 
             async function fetchAttendanceData() {
-                const jurusanId = document.getElementById('jurusan').value;
                 const kelasId = document.getElementById('kelas').value;
                 const deviceId = deviceSelect.value;
-                const tanggal = document.getElementById('tanggal').value;
 
-                laporanTitle.innerText = `Laporan Kehadiran ${formatIndonesianDate(tanggal)}`;
+                // Mendapatkan tanggal hari ini untuk label
+                const today = new Date();
+                const todayString = today.toISOString().split('T')[0];
+                laporanTitle.innerText = `Laporan Kehadiran ${formatIndonesianDate(todayString)}`;
 
                 // === PERBAIKAN DI SINI ===
                 // Menambahkan parameter acak (_=timestamp) untuk mencegah browser caching
                 const cacheBuster = `&_=${new Date().getTime()}`;
                 const url =
-                    `/admin/presensi/siswa/data?tanggal=${tanggal}&jurusan_id=${jurusanId}&kelas_id=${kelasId}&device_id=${deviceId}${cacheBuster}`;
+                    `/admin/presensi/siswa/data?kelas_id=${kelasId}&device_id=${deviceId}${cacheBuster}`;
 
                 try {
                     const response = await fetch(url, {

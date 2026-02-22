@@ -78,7 +78,19 @@ class LaporanAbsensiController extends Controller
         $totalTerlambat = $statistikQuery->where('status', 'terlambat')->count();
         $totalAlpha     = $statistikQuery->where('status', 'alpha')->count();
 
-        $absensi = $query->latest('tanggal')->latest('waktu_masuk')->paginate(20);
+        // Apply sorting
+        $sort = $request->get('sort');
+        $order = $request->get('order', 'asc');
+        
+        if ($sort === 'nomer_absen') {
+            $query->join('siswa', 'absensi_siswa.id_siswa', '=', 'siswa.id')
+                  ->orderBy('siswa.nomer_absen', $order)
+                  ->select('absensi_siswa.*');
+        } else {
+            $query->latest('tanggal')->latest('waktu_masuk');
+        }
+
+        $absensi = $query->paginate(20);
 
         // Append query parameters to pagination links
         $absensi->appends($request->query());

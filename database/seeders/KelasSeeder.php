@@ -15,20 +15,12 @@ class KelasSeeder extends Seeder
     {
         Kelas::insert([
             [
-                'nama_kelas' => 'XII TKK 1',
+                'nama_kelas' => 'X DKV 1',
                 'id_jurusan' => 1, // Referencing Jurusan ID
             ],
             [
-                'nama_kelas' => 'XII TKK 2',
+                'nama_kelas' => 'X DKV 2',
                 'id_jurusan' => 1, // Referencing Jurusan ID
-            ],
-            [
-                'nama_kelas' => 'XII TIF 1',
-                'id_jurusan' => 2, // Referencing Jurusan ID
-            ],
-            [
-                'nama_kelas' => 'XII TIF 2',
-                'id_jurusan' => 2, // Referencing Jurusan ID
             ],
         ]);
     }

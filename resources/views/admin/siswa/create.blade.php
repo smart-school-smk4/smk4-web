@@ -90,6 +90,12 @@
                             @error('nama_siswa') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                         </div>
                         <div>
+                            <label for="nomer_absen" class="block text-sm font-medium text-gray-700 mb-1">Nomer Absen <span class="text-red-500">*</span></label>
+                            <input type="number" id="nomer_absen" name="nomer_absen" required min="1" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" value="{{ old('nomer_absen') }}" placeholder="Masukkan nomer absen">
+                            <p class="mt-1 text-xs text-gray-500">Nomer absen harus unik dalam satu kelas</p>
+                            @error('nomer_absen') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                        </div>
+                        <div>
                             <label for="nisn" class="block text-sm font-medium text-gray-700 mb-1">NISN</label>
                             <input type="number" id="nisn" name="nisn" maxlength="10" oninput="if(this.value.length > 10) this.value = this.value.slice(0,10);" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" value="{{ old('nisn') }}" placeholder="Nomor Induk Siswa Nasional">
                             <p class="mt-1 text-xs text-gray-500">Masukkan 10 digit NISN</p>

@@ -15,14 +15,9 @@ class DevicesSeeder extends Seeder
     {
         Devices::insert([
             [
-                'nama_device' => 'R_Lab_TKK',
+                'nama_device' => 'R_Lab_DKV',
                 'id_kelas' => 1, // Referencing Kelas ID
                 'id_ruangan' => 1, // Referencing Ruangan ID
-            ],
-            [
-                'nama_device' => 'R_Lab_TIF',
-                'id_kelas' => 2, // Referencing Kelas ID
-                'id_ruangan' => 2, // Referencing Ruangan ID
             ],
         ]);
     }

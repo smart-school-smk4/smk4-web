@@ -15,10 +15,7 @@ class JurusanSeeder extends Seeder
     {
         Jurusan::insert([
             [
-                'nama_jurusan' => 'Teknik Komputer',
-            ],
-            [
-                'nama_jurusan' => 'Teknik Informatika',
+                'nama_jurusan' => 'Desain Komunikasi Visual',
             ],
         ]);
     }

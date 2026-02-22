@@ -41,8 +41,18 @@ class SiswaController extends Controller
             $query->where('id_jurusan', $request->jurusan);
         }
         
+        // Apply sorting
+        $sort = $request->get('sort', 'created_at');
+        $order = $request->get('order', 'desc');
+        
+        if ($sort === 'nomer_absen') {
+            $query->orderBy('nomer_absen', $order);
+        } else {
+            $query->latest();
+        }
+        
         // Ambil data dengan pagination
-        $siswa = $query->latest()->paginate(10);
+        $siswa = $query->paginate(10);
         
         // Data untuk dropdown filter
         $kelas = Kelas::all(); 
@@ -70,6 +80,7 @@ class SiswaController extends Controller
         // Validasi data: 'foto_siswa' sekarang adalah array
         $validator = Validator::make($request->all(), [
             'nama_siswa' => 'required|string|max:255',
+            'nomer_absen' => 'required|integer|min:1',
             'nisn' => 'nullable|numeric|unique:siswa,nisn',
             'tanggal_lahir' => 'nullable|date',
             // Validasi untuk array file
@@ -82,7 +93,20 @@ class SiswaController extends Controller
             'alamat' => 'nullable|string',
             'id_kelas' => 'required|exists:kelas,id',
             'id_jurusan' => 'required|exists:jurusan,id',
+        ], [
+            'nomer_absen.unique' => 'Nomer absen sudah digunakan di kelas ini.',
         ]);
+
+        // Additional validation: Check if nomer_absen is unique within the class
+        $existingAbsen = Siswa::where('id_kelas', $request->id_kelas)
+            ->where('nomer_absen', $request->nomer_absen)
+            ->exists();
+
+        if ($existingAbsen) {
+            return redirect()->back()
+                ->withErrors(['nomer_absen' => 'Nomer absen sudah digunakan di kelas ini.'])
+                ->withInput();
+        }
 
         if ($validator->fails()) {
             return redirect()->back()->withErrors($validator)->withInput();
@@ -94,6 +118,7 @@ class SiswaController extends Controller
             // 1. Simpan data siswa terlebih dahulu (tanpa foto)
             $siswa = Siswa::create([
                 'nama_siswa' => $request->nama_siswa,
+                'nomer_absen' => $request->nomer_absen,
                 'nisn' => $request->nisn,
                 'tanggal_lahir' => $request->tanggal_lahir,
                 'jenis_kelamin' => $request->jenis_kelamin,
@@ -151,6 +176,7 @@ class SiswaController extends Controller
         $validator = Validator::make($request->all(), [
             'foto_siswa' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
             'nama_siswa' => 'required|string|max:255',
+            'nomer_absen' => 'required|integer|min:1',
             'nisn' => 'nullable|numeric|unique:siswa,nisn,' . $id,
             'tanggal_lahir' => 'nullable|date',
             'jenis_kelamin' => 'required|in:L,P',
@@ -160,6 +186,18 @@ class SiswaController extends Controller
             'id_kelas' => 'required|exists:kelas,id',
             'id_jurusan' => 'required|exists:jurusan,id',
         ]);
+
+        // Additional validation: Check if nomer_absen is unique within the class (excluding current student)
+        $existingAbsen = Siswa::where('id_kelas', $request->id_kelas)
+            ->where('nomer_absen', $request->nomer_absen)
+            ->where('id', '!=', $id)
+            ->exists();
+
+        if ($existingAbsen) {
+            return redirect()->back()
+                ->withErrors(['nomer_absen' => 'Nomer absen sudah digunakan di kelas ini.'])
+                ->withInput();
+        }
 
         if ($validator->fails()) {
             return redirect()->back()
@@ -182,6 +220,7 @@ class SiswaController extends Controller
 
         // Update data siswa
         $siswa->nama_siswa = $request->nama_siswa;
+        $siswa->nomer_absen = $request->nomer_absen;
         $siswa->nisn = $request->nisn;
         $siswa->tanggal_lahir = $request->tanggal_lahir;
         $siswa->jenis_kelamin = $request->jenis_kelamin;

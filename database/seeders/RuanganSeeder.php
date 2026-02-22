@@ -15,15 +15,9 @@ class RuanganSeeder extends Seeder
     {
         Ruangan::insert([
             [
-                'nama_ruangan' => 'Lab_TKK',
+                'nama_ruangan' => 'Lab_DKV',
                 'id_kelas' => 1, // Referencing Kelas ID
                 'id_jurusan' => 1, // Referencing Jurusan ID
-                'relay_state' => 'off',
-            ],
-            [
-                'nama_ruangan' => 'Lab_TIF',
-                'id_kelas' => 2, // Referencing Kelas ID
-                'id_jurusan' => 2, // Referencing Jurusan ID
                 'relay_state' => 'off',
             ],
         ]);

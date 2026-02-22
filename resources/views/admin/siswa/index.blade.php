@@ -114,10 +114,24 @@
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-gradient-to-r from-gray-50 to-gray-100">
                             <tr>
+                                <th scope="col" class="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                                    <a href="{{ route('admin.siswa.index', array_merge(request()->query(), ['sort' => 'nomer_absen', 'order' => (request('sort') == 'nomer_absen' && request('order') == 'asc') ? 'desc' : 'asc'])) }}" class="flex items-center hover:text-primary-600">
+                                        No. Absen
+                                        @if(request('sort') == 'nomer_absen')
+                                            <svg class="w-4 h-4 ml-1" fill="currentColor" viewBox="0 0 20 20">
+                                                @if(request('order') == 'asc')
+                                                    <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/>
+                                                @else
+                                                    <path d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z"/>
+                                                @endif
+                                            </svg>
+                                        @endif
+                                    </a>
+                                </th>
+                                <th scope="col" class="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Kelas/Jurusan</th>
                                 <th scope="col" class="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Foto</th>
                                 <th scope="col" class="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Nama Siswa</th>
                                 <th scope="col" class="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">NISN</th>
-                                <th scope="col" class="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Kelas/Jurusan</th>
                                 <th scope="col" class="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Kontak</th>
                                 <th scope="col" class="px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">Aksi</th>
                             </tr>
@@ -125,6 +139,16 @@
                         <tbody class="bg-white divide-y divide-gray-100">
                             @forelse($siswa as $item)
                             <tr class="hover:bg-blue-50 transition duration-150">
+                                
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="inline-flex items-center justify-center px-3 py-1 text-sm font-bold text-primary-700 bg-primary-100 rounded-lg">
+                                        {{ $item->nomer_absen ?? '-' }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm font-medium text-gray-900">{{ $item->kelas->nama_kelas ?? '-' }}</div>
+                                    <div class="text-xs text-gray-500 mt-1">{{ $item->jurusan->nama_jurusan ?? '-' }}</div>
+                                </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="flex-shrink-0 h-12 w-12 rounded-xl overflow-hidden border-2 border-gray-200 shadow-sm">
                                         {{-- Mengambil foto pertama dari relasi 'fotos' --}}
@@ -144,10 +168,7 @@
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <span class="text-sm font-medium text-gray-700">{{ $item->nisn }}</span>
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="text-sm font-medium text-gray-900">{{ $item->kelas->nama_kelas ?? '-' }}</div>
-                                    <div class="text-xs text-gray-500 mt-1">{{ $item->jurusan->nama_jurusan ?? '-' }}</div>
-                                </td>
+
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                                     <div class="flex items-center mb-1">
                                         <svg class="w-4 h-4 mr-1 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -185,7 +206,7 @@
                             </tr>
                             @empty
                             <tr>
-                                <td colspan="6" class="px-6 py-12 text-center">
+                                <td colspan="7" class="px-6 py-12 text-center">
                                     <div class="flex flex-col items-center justify-center">
                                         <svg class="w-16 h-16 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>

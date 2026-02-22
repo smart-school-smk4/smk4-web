@@ -231,15 +231,16 @@
         <thead>
             <tr>
                 <th style="width: 5%;">No</th>
+                <th style="width: 7%;">No.<br>Absen</th>
                 <th style="width: 10%;">NIS</th>
-                <th style="width: 20%;">Nama Siswa</th>
+                <th style="width: 18%;">Nama Siswa</th>
                 <th style="width: 10%;">Kelas</th>
-                <th style="width: 15%;">Jurusan</th>
-                <th style="width: 10%;">Tanggal</th>
-                <th style="width: 8%;">Waktu<br>Masuk</th>
-                <th style="width: 8%;">Waktu<br>Keluar</th>
-                <th style="width: 9%;">Status</th>
-                <th style="width: 15%;">Keterangan</th>
+                <th style="width: 13%;">Jurusan</th>
+                <th style="width: 8%;">Tanggal</th>
+                <th style="width: 7%;">Waktu<br>Masuk</th>
+                <th style="width: 7%;">Waktu<br>Keluar</th>
+                <th style="width: 8%;">Status</th>
+                <th style="width: 12%;">Keterangan</th>
             </tr>
         </thead>
         <tbody>
@@ -263,6 +264,7 @@
                 @endphp
                 <tr>
                     <td class="text-center">{{ $index + 1 }}</td>
+                    <td class="text-center"><strong>{{ $item->siswa->nomer_absen ?? '-' }}</strong></td>
                     <td class="text-center">{{ $item->siswa->nisn ?? '-' }}</td>
                     <td>{{ $item->siswa->nama_siswa ?? '-' }}</td>
                     <td class="text-center">{{ $item->siswa->kelas->nama_kelas ?? '-' }}</td>
@@ -287,7 +289,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="10" class="text-center" style="padding: 20px; background-color: #fef3c7;">
+                    <td colspan="11" class="text-center" style="padding: 20px; background-color: #fef3c7;">
                         <strong>⚠ Tidak ada data absensi untuk filter yang dipilih</strong>
                     </td>
                 </tr>

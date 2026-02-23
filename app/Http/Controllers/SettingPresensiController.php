@@ -178,6 +178,8 @@ class SettingPresensiController extends Controller
                 'success' => true,
                 'mode' => $cached['mode'],
                 'source' => 'manual',
+                'status' => 'manual_override',
+                'status_message' => 'Mode diatur manual',
                 'updated_at' => $cached['updated_at'] ?? null,
             ]);
         }
@@ -185,6 +187,8 @@ class SettingPresensiController extends Controller
         // 2) Fallback auto berdasarkan SettingPresensi (jadwal)
         $setting = SettingPresensi::first();
         $mode = 'masuk';  // Default ke masuk
+        $status = 'outside_hours';
+        $statusMessage = 'Di luar jam presensi';
         
         if ($setting) {
             $now = Carbon::now('Asia/Jakarta');
@@ -207,23 +211,43 @@ class SettingPresensiController extends Controller
             // Cek apakah waktu sekarang ada di range waktu masuk
             if ($currentTime >= $waktuMasukMulai && $currentTime <= $waktuMasukSelesai) {
                 $mode = 'masuk';
+                $status = 'checkin_open';
+                $statusMessage = 'Waktu Presensi Masuk';
             }
             // Cek apakah waktu sekarang ada di range waktu pulang
             elseif ($currentTime >= $waktuPulangMulai && $currentTime <= $waktuPulangSelesai) {
                 $mode = 'keluar';
+                $status = 'checkout_open';
+                $statusMessage = 'Waktu Presensi Keluar';
             }
-            // Di luar jam absensi, default ke masuk untuk persiapan
-            else {
+            // Sebelum jam masuk
+            elseif ($currentTime < $waktuMasukMulai) {
                 $mode = 'masuk';
+                $status = 'before_checkin';
+                $statusMessage = 'Belum Waktu Presensi';
+            }
+            // Antara jam masuk selesai dan jam pulang mulai
+            elseif ($currentTime > $waktuMasukSelesai && $currentTime < $waktuPulangMulai) {
+                $mode = 'masuk';
+                $status = 'between_shifts';
+                $statusMessage = 'Jam Belajar Berlangsung';
+            }
+            // Setelah jam pulang
+            else {
+                $mode = 'keluar';
+                $status = 'after_checkout';
+                $statusMessage = 'Presensi Telah Ditutup';
             }
             
-            \Log::info("Mode auto detected: {$mode} (current: {$currentTime}, masuk: {$waktuMasukMulai}-{$waktuMasukSelesai}, pulang: {$waktuPulangMulai}-{$waktuPulangSelesai})");
+            \Log::info("Mode auto detected: {$mode} (status: {$status}, current: {$currentTime}, masuk: {$waktuMasukMulai}-{$waktuMasukSelesai}, pulang: {$waktuPulangMulai}-{$waktuPulangSelesai})");
         }
 
         return response()->json([
             'success' => true,
             'mode' => $mode,
             'source' => 'auto',
+            'status' => $status,
+            'status_message' => $statusMessage,
             'schedule' => $setting ? [
                 'waktu_masuk_mulai' => $waktuMasukMulai ?? null,
                 'waktu_masuk_selesai' => $waktuMasukSelesai ?? null,

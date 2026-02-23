@@ -224,6 +224,52 @@ class SettingPresensiController extends Controller
             'success' => true,
             'mode' => $mode,
             'source' => 'auto',
+            'schedule' => $setting ? [
+                'waktu_masuk_mulai' => $waktuMasukMulai ?? null,
+                'waktu_masuk_selesai' => $waktuMasukSelesai ?? null,
+                'waktu_pulang_mulai' => $waktuPulangMulai ?? null,
+                'waktu_pulang_selesai' => $waktuPulangSelesai ?? null,
+            ] : null,
+        ]);
+    }
+
+    /**
+     * Get attendance schedule settings for device validation
+     */
+    public function getSchedule()
+    {
+        $setting = SettingPresensi::first();
+        
+        if (!$setting) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No schedule configured',
+            ], 404);
+        }
+
+        // Parse waktu dari setting (tambahkan :00 jika belum ada detik)
+        $waktuMasukMulai = strlen($setting->waktu_masuk_mulai) <= 5 
+            ? $setting->waktu_masuk_mulai . ':00' 
+            : $setting->waktu_masuk_mulai;
+        $waktuMasukSelesai = strlen($setting->waktu_masuk_selesai) <= 5 
+            ? $setting->waktu_masuk_selesai . ':00' 
+            : $setting->waktu_masuk_selesai;
+        $waktuPulangMulai = strlen($setting->waktu_pulang_mulai) <= 5 
+            ? $setting->waktu_pulang_mulai . ':00' 
+            : $setting->waktu_pulang_mulai;
+        $waktuPulangSelesai = strlen($setting->waktu_pulang_selesai) <= 5 
+            ? $setting->waktu_pulang_selesai . ':00' 
+            : $setting->waktu_pulang_selesai;
+
+        return response()->json([
+            'success' => true,
+            'schedule' => [
+                'waktu_masuk_mulai' => $waktuMasukMulai,
+                'waktu_masuk_selesai' => $waktuMasukSelesai,
+                'waktu_pulang_mulai' => $waktuPulangMulai,
+                'waktu_pulang_selesai' => $waktuPulangSelesai,
+            ],
+            'current_time' => Carbon::now('Asia/Jakarta')->format('H:i:s'),
         ]);
     }
 }

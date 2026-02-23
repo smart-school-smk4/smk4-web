@@ -43,6 +43,7 @@ if not DEVICE_ID or not LARAVEL_BASE_URL:
 
 LARAVEL_STUDENTS_API_URL = f"{LARAVEL_BASE_URL}/api/devices/{DEVICE_ID}/students"
 LARAVEL_ATTENDANCE_API_URL = f"{LARAVEL_BASE_URL}/api/absensi-siswa"
+LARAVEL_SCHEDULE_API_URL = f"{LARAVEL_BASE_URL}/api/schedule"
 
 # === KONFIGURASI LOCAL STORAGE ===
 LOCAL_MODEL_DIR = 'local_models'
@@ -110,11 +111,13 @@ student_info = {}
 clf = None
 le = None
 current_mode = 'masuk'  # Mode absensi saat ini (masuk/keluar), akan diupdate via polling
+current_schedule = None  # Menyimpan jadwal presensi dari server
 
 print("=" * 60)
 print(f"✅ DEVICE ID      : {DEVICE_ID}")
 print(f"✅ GET SISWA API  : {LARAVEL_STUDENTS_API_URL}")
 print(f"✅ POST ABSENSI   : {LARAVEL_ATTENDANCE_API_URL}")
+print(f"✅ GET SCHEDULE   : {LARAVEL_SCHEDULE_API_URL}")
 print(f"✅ LOCAL MODELS   : {LOCAL_MODEL_DIR}")
 print("=" * 60)
 
@@ -890,6 +893,22 @@ def recognize_and_compare():
 
 # === KIRIM ABSENSI ===
 
+def poll_schedule():
+    """Polling jadwal presensi dari Laravel secara periodik"""
+    global current_schedule
+    while True:
+        try:
+            response = requests.get(LARAVEL_SCHEDULE_API_URL, timeout=5)
+            if response.status_code == 200:
+                data = response.json()
+                if data.get('success'):
+                    current_schedule = data.get('schedule')
+                    print(f"📅 Jadwal presensi diperbarui: Masuk {current_schedule.get('waktu_masuk_mulai')}-{current_schedule.get('waktu_masuk_selesai')}, Keluar {current_schedule.get('waktu_pulang_mulai')}-{current_schedule.get('waktu_pulang_selesai')}")
+        except Exception as e:
+            print(f"⚠️ Gagal polling jadwal: {e}")
+        
+        time.sleep(60)  # Poll setiap 60 detik
+
 def poll_attendance_mode():
     """Polling mode absensi (masuk/keluar) dari Laravel secara periodik"""
     global current_mode
@@ -909,6 +928,53 @@ def poll_attendance_mode():
         
         time.sleep(30)  # Poll setiap 30 detik
 
+def is_within_allowed_time() -> tuple:
+    """Validasi apakah waktu sekarang dalam rentang waktu presensi yang diizinkan.
+    
+    Returns:
+        tuple: (is_valid: bool, reason: str)
+            - is_valid: True jika dalam rentang waktu yang diizinkan
+            - reason: Pesan penjelasan jika tidak valid
+    """
+    if not current_schedule:
+        # Jika jadwal belum di-fetch, izinkan (fallback behavior)
+        return True, "No schedule loaded yet (allowing)"
+    
+    wib = pytz.timezone('Asia/Jakarta')
+    now = datetime.now(wib)
+    current_time_str = now.strftime('%H:%M:%S')
+    
+    try:
+        # Parse jadwal waktu
+        waktu_masuk_mulai = current_schedule.get('waktu_masuk_mulai')
+        waktu_masuk_selesai = current_schedule.get('waktu_masuk_selesai')
+        waktu_pulang_mulai = current_schedule.get('waktu_pulang_mulai')
+        waktu_pulang_selesai = current_schedule.get('waktu_pulang_selesai')
+        
+        # Validasi berdasarkan mode absensi
+        if current_mode == 'masuk':
+            # Untuk mode masuk, validasi apakah dalam rentang waktu masuk
+            if waktu_masuk_mulai and waktu_masuk_selesai:
+                if waktu_masuk_mulai <= current_time_str <= waktu_masuk_selesai:
+                    return True, f"Within check-in time ({waktu_masuk_mulai} - {waktu_masuk_selesai})"
+                else:
+                    return False, f"Outside check-in time. Allowed: {waktu_masuk_mulai} - {waktu_masuk_selesai}, Current: {current_time_str}"
+        elif current_mode == 'keluar':
+            # Untuk mode keluar, validasi apakah dalam rentang waktu keluar
+            if waktu_pulang_mulai and waktu_pulang_selesai:
+                if waktu_pulang_mulai <= current_time_str <= waktu_pulang_selesai:
+                    return True, f"Within check-out time ({waktu_pulang_mulai} - {waktu_pulang_selesai})"
+                else:
+                    return False, f"Outside check-out time. Allowed: {waktu_pulang_mulai} - {waktu_pulang_selesai}, Current: {current_time_str}"
+        
+        # Jika tidak ada validasi yang cocok, izinkan (fallback)
+        return True, "No specific time restriction"
+        
+    except Exception as e:
+        print(f"⚠️ Error validating time: {e}")
+        # Jika error parsing, izinkan attendance (fallback behavior)
+        return True, f"Time validation error (allowing): {str(e)}"
+
 def send_attendance(student_id, foto_wajah_bgr=None):
     """Kirim data absensi beserta foto crop wajah ke Laravel API
     
@@ -916,6 +982,12 @@ def send_attendance(student_id, foto_wajah_bgr=None):
         student_id: ID siswa yang terdeteksi
         foto_wajah_bgr: Numpy array foto crop wajah dalam format BGR (optional)
     """
+    # === VALIDASI WAKTU TERLEBIH DAHULU ===
+    is_valid, reason = is_within_allowed_time()
+    if not is_valid:
+        print(f"⏰ ABSENSI DITOLAK: {reason}")
+        return False
+    
     try:
         # Set timezone ke WIB (Asia/Jakarta)
         wib = pytz.timezone('Asia/Jakarta')
@@ -1149,11 +1221,19 @@ if __name__ == '__main__':
             name="ModePollThread"
         ).start()
         
+        # Schedule polling thread - fetch attendance time windows
+        threading.Thread(
+            target=poll_schedule,
+            daemon=True,
+            name="SchedulePollThread"
+        ).start()
+        
         print("=" * 60)
         print("✅ All background threads started successfully")
         print(f"📐 Camera Resolution: {FRAME_WIDTH}x{FRAME_HEIGHT}")
         print(f"🎯 Frame processing: Every {FRAME_SKIP} frame(s)")
         print(f"🔍 Face Detection size: {DET_SIZE}")
+        print(f"⏰ Time validation: Enabled (checking schedule)")
         print(f"🌐 Access video at: http://<raspberry-pi-ip>:5000/video_feed")
         if IS_RASPBERRY_PI:
             print(f"📷 Arducam CSI: BGR->RGB conversion enabled")

@@ -61,4 +61,7 @@ Route::get('/devices/{device}/students', [DeviceStudentController::class, 'index
 // Device mode polling endpoint (untuk Flask pull mode dari server)
 Route::get('/devices/{device}/mode', [SettingPresensiController::class, 'getDeviceMode'])->name('api.devices.mode');
 
+// Get attendance schedule for validation
+Route::get('/schedule', [SettingPresensiController::class, 'getSchedule'])->name('api.schedule');
+
 Route::get('/laporan-absensi', AbsensiLaporanController::class);

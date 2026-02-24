@@ -164,6 +164,24 @@
                                 </div>
                             </div>
                         </div>
+                        
+                        <!-- Detection Logs Section -->
+                        <div class="border-t border-gray-200 p-6 bg-gray-50/50">
+                            <h3 class="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+                                <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                </svg>
+                                Log Deteksi Real-time
+                            </h3>
+                            <div id="detectionLogs" class="bg-gray-900 rounded-lg p-4 h-64 overflow-y-auto font-mono text-xs space-y-1">
+                                <div class="text-gray-500 text-center py-8">
+                                    <svg class="w-8 h-8 mx-auto mb-2 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                    <p>Pilih device untuk melihat log deteksi</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -287,6 +305,81 @@
                     </div>
                 `;
             };
+
+            // Detection Logs Functionality
+            let detectionLogsInterval;
+            const detectionLogsContainer = document.getElementById('detectionLogs');
+            
+            function updateDetectionLogs() {
+                const deviceId = deviceSelect.value;
+                
+                if (!deviceId || deviceId === 'all') {
+                    detectionLogsContainer.innerHTML = `
+                        <div class="text-gray-500 text-center py-8">
+                            <svg class="w-8 h-8 mx-auto mb-2 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <p>Pilih device untuk melihat log deteksi</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                fetch(`/api/detection-logs/${deviceId}?limit=30`)
+                    .then(response => response.json())
+                    .then(result => {
+                        if (result.success && result.data.length > 0) {
+                            detectionLogsContainer.innerHTML = result.data.map(log => {
+                                const probColor = log.probability >= 0.7 ? 'text-green-400' : 
+                                                 log.probability >= 0.5 ? 'text-yellow-400' : 
+                                                 'text-red-400';
+                                const probPercent = Math.round(log.probability * 100);
+                                
+                                return `
+                                    <div class="text-gray-300 hover:bg-gray-800 px-2 py-1 rounded transition-colors">
+                                        <span class="text-gray-500">[${log.detected_at}]</span>
+                                        <span class="${probColor} font-semibold">${probPercent}%</span>
+                                        <span class="text-white">${log.student_name}</span>
+                                        ${log.nis ? `<span class="text-gray-400">(${log.nis})</span>` : ''}
+                                    </div>
+                                `;
+                            }).join('');
+                            
+                            // Auto-scroll to bottom for new logs
+                            detectionLogsContainer.scrollTop = 0;
+                        } else {
+                            detectionLogsContainer.innerHTML = `
+                                <div class="text-gray-500 text-center py-8">
+                                    <svg class="w-8 h-8 mx-auto mb-2 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path>
+                                    </svg>
+                                    <p>Belum ada deteksi wajah</p>
+                                </div>
+                            `;
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error fetching detection logs:', error);
+                        detectionLogsContainer.innerHTML = `
+                            <div class="text-red-500 text-center py-8">
+                                <svg class="w-8 h-8 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                <p>Gagal memuat log deteksi</p>
+                            </div>
+                        `;
+                    });
+            }
+            
+            function startDetectionLogsPolling() {
+                clearInterval(detectionLogsInterval);
+                updateDetectionLogs(); // Initial fetch
+                detectionLogsInterval = setInterval(updateDetectionLogs, 2000); // Update every 2 seconds
+            }
+            
+            function stopDetectionLogsPolling() {
+                clearInterval(detectionLogsInterval);
+            }
 
             async function fetchAttendanceData() {
                 const kelasId = document.getElementById('kelas').value;
@@ -456,6 +549,8 @@
 
             deviceSelect.addEventListener('change', function() {
                 updateCameraFeed();
+                stopDetectionLogsPolling(); // Stop previous polling
+                startDetectionLogsPolling(); // Start new polling for selected device
             });
 
             startAutoRefresh();

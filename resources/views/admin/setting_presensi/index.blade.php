@@ -68,6 +68,7 @@
                     <tr>
                         <th class="px-6 py-3 text-xs font-medium tracking-wider text-gray-500 uppercase">Waktu Masuk (Mulai - Selesai)</th>
                         <th class="px-6 py-3 text-xs font-medium tracking-wider text-gray-500 uppercase">Waktu Pulang (Mulai - Selesai)</th>
+                        <th class="px-6 py-3 text-xs font-medium tracking-wider text-gray-500 uppercase">Threshold Akurasi</th>
                         <th class="px-6 py-3 text-xs font-medium tracking-wider text-gray-500 uppercase">Aksi</th>
                     </tr>
                 </thead>
@@ -84,6 +85,11 @@
                              - 
                             <span class="px-3 py-1 text-sm font-semibold text-red-800 bg-red-100 rounded-full">{{ \Carbon\Carbon::parse($setting->waktu_pulang_selesai)->format('H:i') }}</span>
                         </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-center">
+                            <span class="px-3 py-1 text-sm font-semibold text-blue-800 bg-blue-100 rounded-full">
+                                {{ number_format(($setting->threshold_probabilitas ?? 0.50) * 100, 0) }}%
+                            </span>
+                        </td>
                         <td class="px-6 py-4 whitespace-nowrap">
                             <div class="flex items-center space-x-2">
                                 <a href="{{ route('admin.setting_presensi.edit', $setting->id) }}" class="px-3 py-1 text-xs font-semibold text-white bg-yellow-500 rounded-md shadow-sm hover:bg-yellow-600 transition">Edit</a>
@@ -97,7 +103,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="3" class="px-6 py-4 text-center text-gray-500">
+                        <td colspan="4" class="px-6 py-4 text-center text-gray-500">
                             Belum ada pengaturan waktu presensi.
                         </td>
                     </tr>

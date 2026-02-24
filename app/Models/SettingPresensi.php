@@ -13,6 +13,11 @@ class SettingPresensi extends Model
         'waktu_masuk_selesai',
         'waktu_pulang_mulai',
         'waktu_pulang_selesai',
+        'threshold_probabilitas',
+    ];
+
+    protected $casts = [
+        'threshold_probabilitas' => 'decimal:2',
     ];
 
     public $timestamps = true;

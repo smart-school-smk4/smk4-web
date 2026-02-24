@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\AbsensiSiswaApiController;
 use App\Http\Controllers\Api\BellController as ApiBellController;
 use App\Http\Controllers\Api\DevicesApiController;
 use App\Http\Controllers\Api\DeviceStudentController;
+use App\Http\Controllers\Api\DetectionLogController;
 use App\Http\Controllers\Api\SiswaApiController;
 use App\Http\Controllers\belController;
 use Illuminate\Support\Facades\Route;
@@ -63,5 +64,13 @@ Route::get('/devices/{device}/mode', [SettingPresensiController::class, 'getDevi
 
 // Get attendance schedule for validation
 Route::get('/schedule', [SettingPresensiController::class, 'getSchedule'])->name('api.schedule');
+
+// Get threshold probabilitas for Flask
+Route::get('/settings/threshold', [SettingPresensiController::class, 'getThreshold'])->name('api.settings.threshold');
+
+// Detection logs endpoints
+Route::post('/detection-logs', [DetectionLogController::class, 'store'])->name('api.detection-logs.store');
+Route::get('/detection-logs/{device_id}', [DetectionLogController::class, 'getLatestLogs'])->name('api.detection-logs.get');
+Route::delete('/detection-logs/cleanup', [DetectionLogController::class, 'cleanup'])->name('api.detection-logs.cleanup');
 
 Route::get('/laporan-absensi', AbsensiLaporanController::class);

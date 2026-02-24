@@ -30,6 +30,7 @@ class SettingPresensiController extends Controller
             'waktu_masuk_selesai' => 'required',
             'waktu_pulang_mulai' => 'required',
             'waktu_pulang_selesai' => 'required',
+            'threshold_probabilitas' => 'required|numeric|min:0.1|max:1',
         ]);
 
         SettingPresensi::create($validated);
@@ -50,6 +51,7 @@ class SettingPresensiController extends Controller
             'waktu_masuk_selesai' => 'required',
             'waktu_pulang_mulai' => 'required',
             'waktu_pulang_selesai' => 'required',
+            'threshold_probabilitas' => 'required|numeric|min:0.1|max:1',
         ]);
 
         $setting = SettingPresensi::findOrFail($id);
@@ -294,6 +296,29 @@ class SettingPresensiController extends Controller
                 'waktu_pulang_selesai' => $waktuPulangSelesai,
             ],
             'current_time' => Carbon::now('Asia/Jakarta')->format('H:i:s'),
+        ]);
+    }
+
+    /**
+     * Get threshold probabilitas untuk Flask
+     * Endpoint: GET /api/settings/threshold
+     */
+    public function getThreshold()
+    {
+        $setting = SettingPresensi::first();
+        
+        if (!$setting) {
+            return response()->json([
+                'success' => true,
+                'threshold' => 0.50, // Default threshold jika belum ada setting
+                'source' => 'default'
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'threshold' => (float) $setting->threshold_probabilitas,
+            'source' => 'database'
         ]);
     }
 }

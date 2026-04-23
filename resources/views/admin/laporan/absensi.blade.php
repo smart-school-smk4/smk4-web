@@ -404,7 +404,7 @@
         </div>
     </div>
     <!-- Modal untuk zoom foto -->
-    <div id="fotoModal" class="hidden fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4"
+    <div id="fotoModal" class="hidden fixed inset-0 bg-black bg-opacity-75 z-50 items-center justify-center p-4"
         onclick="closeFotoModal()">
         <div class="relative max-w-4xl w-full bg-white rounded-2xl shadow-2xl" onclick="event.stopPropagation()">
             <div class="bg-gradient-to-r from-blue-500 to-purple-500 p-4 rounded-t-2xl flex items-center justify-between">
@@ -445,7 +445,9 @@
                 </svg>
                 Foto Wajah ${type} - ${siswaName}
             `;
-            document.getElementById('fotoModal').classList.remove('hidden');
+            const fotoModal = document.getElementById('fotoModal');
+            fotoModal.classList.remove('hidden');
+            fotoModal.classList.add('flex');
             document.body.style.overflow = 'hidden';
         }
 
@@ -463,7 +465,9 @@
 
         // Fungsi untuk menutup modal foto
         function closeFotoModal() {
-            document.getElementById('fotoModal').classList.add('hidden');
+            const fotoModal = document.getElementById('fotoModal');
+            fotoModal.classList.add('hidden');
+            fotoModal.classList.remove('flex');
             document.body.style.overflow = 'auto';
         }
 

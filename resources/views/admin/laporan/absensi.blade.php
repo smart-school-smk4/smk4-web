@@ -276,13 +276,21 @@
                                     </td>
                                     <td class="px-6 py-4 text-center">
                                         @if($data->foto_wajah)
-                                            <img 
-                                                src="{{ asset('storage/' . $data->foto_wajah) }}" 
-                                                alt="Foto Masuk" 
-                                                class="w-12 h-12 rounded-lg object-cover cursor-pointer border-2 border-blue-200 hover:border-blue-400 transition-all hover:scale-110 shadow-md mx-auto"
-                                                onclick="showFotoModal('{{ asset('storage/' . $data->foto_wajah) }}', '{{ $data->siswa->nama_siswa ?? 'Unknown' }}', 'Masuk')"
-                                                onerror="this.onerror=null; this.src='data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 fill=%27none%27 viewBox=%270 0 24 24%27 stroke=%27%23CBD5E0%27%3E%3Cpath stroke-linecap=%27round%27 stroke-linejoin=%27round%27 stroke-width=%272%27 d=%27M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z%27/%3E%3C/svg%3E';"
+                                            <button
+                                                type="button"
+                                                class="inline-block foto-preview-trigger"
+                                                data-image="{{ asset('storage/' . $data->foto_wajah) }}"
+                                                data-siswa="{{ e($data->siswa->nama_siswa ?? 'Unknown') }}"
+                                                data-type="Masuk"
+                                                aria-label="Lihat bukti foto masuk"
                                             >
+                                                <img 
+                                                    src="{{ asset('storage/' . $data->foto_wajah) }}" 
+                                                    alt="Foto Masuk" 
+                                                    class="w-12 h-12 rounded-lg object-cover cursor-pointer border-2 border-blue-200 hover:border-blue-400 transition-all hover:scale-110 shadow-md mx-auto"
+                                                    onerror="this.onerror=null; this.src='data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 fill=%27none%27 viewBox=%270 0 24 24%27 stroke=%27%23CBD5E0%27%3E%3Cpath stroke-linecap=%27round%27 stroke-linejoin=%27round%27 stroke-width=%272%27 d=%27M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z%27/%3E%3C/svg%3E';"
+                                                >
+                                            </button>
                                         @else
                                             <span class="text-gray-400 text-xs">-</span>
                                         @endif
@@ -292,13 +300,21 @@
                                     </td>
                                     <td class="px-6 py-4 text-center">
                                         @if($data->foto_wajah_keluar)
-                                            <img 
-                                                src="{{ asset('storage/' . $data->foto_wajah_keluar) }}" 
-                                                alt="Foto Keluar" 
-                                                class="w-12 h-12 rounded-lg object-cover cursor-pointer border-2 border-purple-200 hover:border-purple-400 transition-all hover:scale-110 shadow-md mx-auto"
-                                                onclick="showFotoModal('{{ asset('storage/' . $data->foto_wajah_keluar) }}', '{{ $data->siswa->nama_siswa ?? 'Unknown' }}', 'Keluar')"
-                                                onerror="this.onerror=null; this.src='data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 fill=%27none%27 viewBox=%270 0 24 24%27 stroke=%27%23CBD5E0%27%3E%3Cpath stroke-linecap=%27round%27 stroke-linejoin=%27round%27 stroke-width=%272%27 d=%27M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z%27/%3E%3C/svg%3E';"
+                                            <button
+                                                type="button"
+                                                class="inline-block foto-preview-trigger"
+                                                data-image="{{ asset('storage/' . $data->foto_wajah_keluar) }}"
+                                                data-siswa="{{ e($data->siswa->nama_siswa ?? 'Unknown') }}"
+                                                data-type="Keluar"
+                                                aria-label="Lihat bukti foto keluar"
                                             >
+                                                <img 
+                                                    src="{{ asset('storage/' . $data->foto_wajah_keluar) }}" 
+                                                    alt="Foto Keluar" 
+                                                    class="w-12 h-12 rounded-lg object-cover cursor-pointer border-2 border-purple-200 hover:border-purple-400 transition-all hover:scale-110 shadow-md mx-auto"
+                                                    onerror="this.onerror=null; this.src='data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 fill=%27none%27 viewBox=%270 0 24 24%27 stroke=%27%23CBD5E0%27%3E%3Cpath stroke-linecap=%27round%27 stroke-linejoin=%27round%27 stroke-width=%272%27 d=%27M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z%27/%3E%3C/svg%3E';"
+                                                >
+                                            </button>
                                         @else
                                             <span class="text-gray-400 text-xs">-</span>
                                         @endif
@@ -432,6 +448,18 @@
             document.getElementById('fotoModal').classList.remove('hidden');
             document.body.style.overflow = 'hidden';
         }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const triggers = document.querySelectorAll('.foto-preview-trigger');
+            triggers.forEach(function(trigger) {
+                trigger.addEventListener('click', function() {
+                    const imageSrc = this.dataset.image;
+                    const siswaName = this.dataset.siswa || 'Unknown';
+                    const type = this.dataset.type || 'Masuk';
+                    showFotoModal(imageSrc, siswaName, type);
+                });
+            });
+        });
 
         // Fungsi untuk menutup modal foto
         function closeFotoModal() {

@@ -41,6 +41,7 @@
         <div class="p-6">
             <form id="createForm" action="{{ route('admin.kelas.store') }}" method="POST">
                 @csrf
+                <input type="hidden" name="kode_kelas" id="kode_kelas" value="{{ old('kode_kelas') }}">
 
                 <!-- Nama Kelas -->
                 <div class="mb-6">
@@ -50,18 +51,6 @@
                            value="{{ old('nama_kelas') }}"
                            placeholder="Contoh: X IPA 1" required>
                     @error('nama_kelas')
-                        <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
-                    @enderror
-                </div>
-
-                <!-- Kode Kelas -->
-                <div class="mb-6">
-                    <label for="kode_kelas" class="block text-sm font-medium text-gray-700 mb-2">Kode Kelas</label>
-                    <input type="text" name="kode_kelas" id="kode_kelas" 
-                           class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition duration-300 @error('kode_kelas') border-red-500 @enderror"
-                           value="{{ old('kode_kelas') }}"
-                           placeholder="Contoh: XIPA1">
-                    @error('kode_kelas')
                         <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
                     @enderror
                 </div>
@@ -124,6 +113,34 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
+function generateKodeKelas(namaKelas) {
+    return namaKelas
+        .toUpperCase()
+        .replace(/\s+/g, '')
+        .replace(/[^A-Z0-9]/g, '');
+}
+
+function setupAutoKodeKelas() {
+    const namaKelasInput = document.getElementById('nama_kelas');
+    const kodeKelasInput = document.getElementById('kode_kelas');
+
+    if (!namaKelasInput || !kodeKelasInput) {
+        return;
+    }
+
+    const syncKodeKelas = () => {
+        kodeKelasInput.value = generateKodeKelas(namaKelasInput.value);
+    };
+
+    namaKelasInput.addEventListener('input', syncKodeKelas);
+
+    if (namaKelasInput.value) {
+        syncKodeKelas();
+    }
+}
+
+document.addEventListener('DOMContentLoaded', setupAutoKodeKelas);
+
 function confirmCreate() {
     const form = document.getElementById('createForm');
     const namaKelas = document.getElementById('nama_kelas').value;

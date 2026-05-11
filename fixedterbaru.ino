@@ -90,55 +90,7 @@ struct ActiveSchedule {
   unsigned long startTime = 0;
 };
 
-// ========== Round Robin Priority Queue System ==========
-enum PriorityLevel {
-  PRIORITY_HIGH,    // Critical: Bel, Announcement, Schedule Check
-  PRIORITY_MEDIUM,  // Important: MQTT, Schedule Sync
-  PRIORITY_LOW      // Maintenance: I2C Monitor, NTP Sync
-};
 
-enum TaskType { 
-  TASK_BEL,
-  TASK_ANNOUNCEMENT,
-  TASK_SCHEDULE_CHECK,
-  TASK_MQTT_KEEPALIVE,
-  TASK_SCHEDULE_SYNC,
-  TASK_NTP_SYNC,
-  TASK_I2C_MONITOR,
-  TASK_NONE 
-};
-
-enum TaskState { TASK_IDLE, TASK_RUNNING, TASK_COMPLETED };
-
-struct Task {
-  TaskType type = TASK_NONE;
-  TaskState state = TASK_IDLE;
-  PriorityLevel priority = PRIORITY_LOW;
-  unsigned long startTime = 0;
-  unsigned long period = 0;
-  unsigned long lastExecutionTime = 0;
-  bool isPeriodic = false;
-  
-  // Data untuk bel
-  String fileNumber = "";
-  int volume = 15;
-  int repeat = 1;
-  int currentRepeat = 0;
-  unsigned long repeatStartTime = 0;
-  String triggerType = "manual";   // "manual" atau "schedule"
-  
-  // Data untuk pengumuman
-  String ttsText = "";
-  String ttsLanguage = "id-id";
-  String ttsVoice = "intan";
-  uint8_t* audioBuffer = nullptr;
-  size_t audioSize = 0;
-  size_t audioPosition = 0;
-  bool downloadComplete = false;
-  
-  // Data relay
-  std::vector<int> relayList;
-};
 
 struct SystemState {
   bool wifiConnected = false;
@@ -162,20 +114,6 @@ struct SystemState {
   bool i2cStable = true;
   int i2cErrorCount = 0;
   unsigned long lastI2CRecovery = 0;
-  
-  // Round Robin Priority Queues
-  Task highPriorityQueue[5];   // Max 5 high priority tasks
-  int highQueueCount = 0;
-  
-  Task mediumPriorityQueue[3]; // Max 3 medium priority tasks
-  int mediumQueueCount = 0;
-  
-  Task lowPriorityQueue[3];    // Max 3 low priority tasks
-  int lowQueueCount = 0;
-  
-  int currentHighIndex = 0;    // Round robin index for high queue
-  int currentMediumIndex = 0;  // Round robin index for medium queue
-  int currentLowIndex = 0;     // Round robin index for low queue
 };
 
 // ========== Global Variables ==========
@@ -271,18 +209,6 @@ void setup() {
   } else {
     LOG("Loaded " + String(scheduleCount) + " schedules from flash");
   }
-  
-  // Initialize Round Robin Priority Queue Tasks
-  LOG("Initializing priority queue tasks...");
-  createScheduleCheckTask();    // HIGH priority - Every 1 second
-  createMQTTKeepaliveTask();    // MEDIUM priority - Every 15 seconds
-  createScheduleSyncTask();     // MEDIUM priority - Every 1 hour
-  createI2CMonitorTask();       // LOW priority - Every 1 minute
-  createNTPSyncTask();          // LOW priority - Every 24 hours
-  LOG("Priority queue tasks initialized");
-  LOG("HIGH Queue: " + String(state.highQueueCount) + " tasks");
-  LOG("MEDIUM Queue: " + String(state.mediumQueueCount) + " tasks");
-  LOG("LOW Queue: " + String(state.lowQueueCount) + " tasks");
   
   LOG("System initialization complete");
 }
@@ -590,14 +516,54 @@ void setupMQTT() {
 
 // ========== Main Loop ==========
 void loop() {
-  // Reset watchdog timer (DISABLED)
-  // esp_task_wdt_reset();
-  
   maintainMQTTConnection();
   mqttClient.loop();
 
-  // Round Robin Priority Queue Scheduler
-  processTaskQueues();
+  // Direct task execution without RMS
+  checkSchedules();
+  
+  // Periodic maintenance tasks
+  static unsigned long lastMQTTCheck = 0;
+  if (millis() - lastMQTTCheck >= 15000) {
+    lastMQTTCheck = millis();
+    if (!mqttClient.connected()) {
+      reconnectMQTT();
+    }
+  }
+  
+  static unsigned long lastI2CCheck = 0;
+  if (millis() - lastI2CCheck >= 60000) {
+    lastI2CCheck = millis();
+    bool c1 = checkI2CConnection(0x20);
+    bool c2 = checkI2CConnection(0x21);
+    bool c3 = checkI2CConnection(0x22);
+    bool c4 = checkI2CConnection(0x23);
+    
+    if (!c1 || !c2 || !c3 || !c4) {
+      state.i2cErrorCount++;
+      state.i2cStable = false;
+      if (state.i2cErrorCount >= 3) {
+        recoverI2CBus();
+        state.i2cErrorCount = 0;
+      }
+    } else {
+      state.i2cStable = true;
+      state.i2cErrorCount = 0;
+    }
+    logI2CStatus();
+  }
+  
+  static unsigned long lastNTPSync = 0;
+  if (millis() - lastNTPSync >= 86400000) {  // 24 hours
+    lastNTPSync = millis();
+    syncRTCWithNTP();
+  }
+  
+  static unsigned long lastScheduleSync = 0;
+  if (millis() - lastScheduleSync >= 3600000) {  // 1 hour
+    lastScheduleSync = millis();
+    requestScheduleSync();
+  }
 
   // Status check setiap 30 detik
   static unsigned long lastStatusLog = 0;
@@ -605,9 +571,6 @@ void loop() {
     lastStatusLog = millis();
     LOG("Status: MQTT=" + String(state.mqttConnected ? "Connected" : "Disconnected") + 
         " | WiFi=" + String(WiFi.status() == WL_CONNECTED ? "Connected" : "Disconnected"));
-    LOG("Queue: HIGH=" + String(state.highQueueCount) + 
-        " | MEDIUM=" + String(state.mediumQueueCount) + 
-        " | LOW=" + String(state.lowQueueCount));
   }
 
   // Reset active schedule setelah 1 menit
@@ -974,8 +937,20 @@ void handleTTSPlay(String payload) {
     }
   }
   
-  // Add to priority queue instead of direct execution
-  createAnnouncementTask(text, lang, voice, relayList);
+  // Activate relays
+  for (int relay : relayList) {
+    setRelayState(relay, true);
+  }
+  sendRelayStatusUpdate();
+  
+  // Play TTS directly
+  playTTS(text, lang, voice);
+  
+  // Deactivate relays
+  for (int relay : relayList) {
+    setRelayState(relay, false);
+  }
+  sendRelayStatusUpdate();
 }
 
 void handleRingCommand(String payload) {
@@ -1004,13 +979,33 @@ void handleRingCommand(String payload) {
     return;
   }
 
-  // Buat RMS task untuk bel
-  createBelTask(
-    doc["file_number"].as<String>(),
-    doc["volume"] | 15,
-    doc["repeat"] | 1,
-    "manual"
-  );
+  // Direct execution of bel
+  String fileNumber = doc["file_number"].as<String>();
+  int volume = doc["volume"] | 15;
+  int repeat = doc["repeat"] | 1;
+  
+  playBelDirect(fileNumber, volume, repeat, "manual");
+}
+
+void playBelDirect(String fileNumber, int volume, int repeat, const char* triggerType) {
+  LOG("Playing bell directly: file=" + fileNumber + " volume=" + String(volume) + " repeat=" + String(repeat));
+  
+  setAllRelays(true);
+  sendRelayStatusUpdate();
+  dfPlayer.volume(volume);
+  
+  for (int i = 0; i < repeat; i++) {
+    dfPlayer.play(fileNumber.toInt());
+    delay(30000);  // 30 second wait between repeats
+    if (i < repeat - 1) {
+      LOG("Bell repeat " + String(i + 1) + "/" + String(repeat));
+    }
+  }
+  
+  setAllRelays(false);
+  sendRelayStatusUpdate();
+  logBellEvent(fileNumber, volume, repeat, triggerType);
+  LOG("Bell playback completed");
 }
 
 // ========== Relay Control Functions ==========
@@ -1338,8 +1333,6 @@ void updateSchedules(JsonArray schedulesArray) {
   LOG("Total schedules: " + String(scheduleCount));
 }
 
-// ========== Fungsi Audio (Legacy - dipindah ke RMS) ==========
-
 // ========== Fungsi Pendukung ==========
 String urlEncode(String str) {
   String encodedString = "";
@@ -1463,284 +1456,9 @@ void logI2CStatus() {
   LOG("I2C Status: " + payload);
 }
 
-// ========== RMS Task Management Functions ==========
-void createBelTask(String fileNumber, int volume, int repeat, const char* triggerType) {
-  if (state.highQueueCount >= 5) {
-    LOG("High priority queue full!");
-    return;
-  }
-  
-  Task newTask;
-  newTask.type = TASK_BEL;
-  newTask.state = TASK_IDLE;
-  newTask.priority = PRIORITY_HIGH;
-  newTask.startTime = millis();
-  newTask.period = 30000;
-  newTask.isPeriodic = false;
-  newTask.fileNumber = fileNumber;
-  newTask.volume = volume;
-  newTask.repeat = repeat;
-  newTask.currentRepeat = 0;
-  newTask.triggerType = String(triggerType);
-  
-  state.highPriorityQueue[state.highQueueCount++] = newTask;
-  LOG("[QUEUE] Bel task added to HIGH priority queue");
-}
 
-void createScheduleCheckTask() {
-  if (state.highQueueCount >= 5) return;
-  
-  Task newTask;
-  newTask.type = TASK_SCHEDULE_CHECK;
-  newTask.state = TASK_IDLE;
-  newTask.priority = PRIORITY_HIGH;
-  newTask.period = 1000;
-  newTask.isPeriodic = true;
-  newTask.lastExecutionTime = millis();
-  
-  state.highPriorityQueue[state.highQueueCount++] = newTask;
-  LOG("[QUEUE] Schedule Check added to HIGH priority (1s period)");
-}
 
-void createMQTTKeepaliveTask() {
-  if (state.mediumQueueCount >= 3) return;
-  
-  Task newTask;
-  newTask.type = TASK_MQTT_KEEPALIVE;
-  newTask.state = TASK_IDLE;
-  newTask.priority = PRIORITY_MEDIUM;
-  newTask.period = 15000;
-  newTask.isPeriodic = true;
-  newTask.lastExecutionTime = millis();
-  
-  state.mediumPriorityQueue[state.mediumQueueCount++] = newTask;
-  LOG("[QUEUE] MQTT Keepalive added to MEDIUM priority (15s period)");
-}
 
-void createScheduleSyncTask() {
-  if (state.mediumQueueCount >= 3) return;
-  
-  Task newTask;
-  newTask.type = TASK_SCHEDULE_SYNC;
-  newTask.state = TASK_IDLE;
-  newTask.priority = PRIORITY_MEDIUM;
-  newTask.period = 3600000;
-  newTask.isPeriodic = true;
-  newTask.lastExecutionTime = millis();
-  
-  state.mediumPriorityQueue[state.mediumQueueCount++] = newTask;
-  LOG("[QUEUE] Schedule Sync added to MEDIUM priority (1h period)");
-}
-
-void createI2CMonitorTask() {
-  if (state.lowQueueCount >= 3) return;
-  
-  Task newTask;
-  newTask.type = TASK_I2C_MONITOR;
-  newTask.state = TASK_IDLE;
-  newTask.priority = PRIORITY_LOW;
-  newTask.period = 60000;
-  newTask.isPeriodic = true;
-  newTask.lastExecutionTime = millis();
-  
-  state.lowPriorityQueue[state.lowQueueCount++] = newTask;
-  LOG("[QUEUE] I2C Monitor added to LOW priority (1m period)");
-}
-
-void createNTPSyncTask() {
-  if (state.lowQueueCount >= 3) return;
-  
-  Task newTask;
-  newTask.type = TASK_NTP_SYNC;
-  newTask.state = TASK_IDLE;
-  newTask.priority = PRIORITY_LOW;
-  newTask.period = 86400000;
-  newTask.isPeriodic = true;
-  newTask.lastExecutionTime = millis();
-  
-  state.lowPriorityQueue[state.lowQueueCount++] = newTask;
-  LOG("[QUEUE] NTP Sync added to LOW priority (24h period)");
-}
-
-void createAnnouncementTask(String text, String lang, String voice, std::vector<int> relays) {
-  if (state.highQueueCount >= 5) {
-    LOG("High priority queue full!");
-    return;
-  }
-  
-  Task newTask;
-  newTask.type = TASK_ANNOUNCEMENT;
-  newTask.state = TASK_IDLE;
-  newTask.priority = PRIORITY_HIGH;
-  newTask.startTime = millis();
-  newTask.isPeriodic = false;
-  newTask.ttsText = text;
-  newTask.ttsLanguage = lang;
-  newTask.ttsVoice = voice;
-  newTask.relayList = relays;
-  
-  state.highPriorityQueue[state.highQueueCount++] = newTask;
-  LOG("[QUEUE] Announcement task added to HIGH priority queue");
-}
-
-void processTaskQueues() {
-  // Process HIGH priority queue first (Round Robin)
-  if (state.highQueueCount > 0) {
-    processQueue(state.highPriorityQueue, state.highQueueCount, state.currentHighIndex, PRIORITY_HIGH);
-  }
-  
-  // Then MEDIUM priority
-  if (state.mediumQueueCount > 0) {
-    processQueue(state.mediumPriorityQueue, state.mediumQueueCount, state.currentMediumIndex, PRIORITY_MEDIUM);
-  }
-  
-  // Finally LOW priority
-  if (state.lowQueueCount > 0) {
-    processQueue(state.lowPriorityQueue, state.lowQueueCount, state.currentLowIndex, PRIORITY_LOW);
-  }
-}
-
-void processQueue(Task* queue, int& count, int& index, PriorityLevel priority) {
-  if (count == 0) return;
-  
-  Task* task = &queue[index];
-  
-  // Cek periodic task - skip jika belum waktunya
-  if (task->isPeriodic && task->state == TASK_IDLE) {
-    if (millis() - task->lastExecutionTime < task->period) {
-      // Move to next task (Round Robin)
-      index = (index + 1) % count;
-      return; // Belum waktunya execute
-    }
-  }
-  
-  if (task->state == TASK_IDLE) {
-    String taskName = "UNKNOWN";
-    switch(task->type) {
-      case TASK_BEL: taskName = "BEL"; break;
-      case TASK_SCHEDULE_CHECK: taskName = "SCHEDULE_CHECK"; break;
-      case TASK_NTP_SYNC: taskName = "NTP_SYNC"; break;
-      case TASK_SCHEDULE_SYNC: taskName = "SCHEDULE_SYNC"; break;
-      case TASK_MQTT_KEEPALIVE: taskName = "MQTT_KEEPALIVE"; break;
-      case TASK_I2C_MONITOR: taskName = "I2C_MONITOR"; break;
-      default: break;
-    }
-    LOG("[RMS] Starting task: " + taskName);
-    task->state = TASK_RUNNING;
-    task->lastExecutionTime = millis();
-    
-    if (task->type == TASK_BEL) {
-      setAllRelays(true);
-      sendRelayStatusUpdate();
-      dfPlayer.volume(25);
-      dfPlayer.play(task->fileNumber.toInt());
-      task->repeatStartTime = millis();
-      LOG("[BEL] Playing file " + task->fileNumber + " (repeat " + String(task->currentRepeat + 1) + "/" + String(task->repeat) + ")");
-    }
-    else if (task->type == TASK_SCHEDULE_CHECK) {
-      checkSchedules();
-      task->state = TASK_COMPLETED;
-      LOG("[RMS] Schedule check completed");
-    }
-    else if (task->type == TASK_NTP_SYNC) {
-      LOG("[NTP] Starting sync...");
-      syncRTCWithNTP();
-      task->state = TASK_COMPLETED;
-      LOG("[RMS] NTP Sync completed");
-    }
-    else if (task->type == TASK_SCHEDULE_SYNC) {
-      LOG("[SYNC] Requesting schedule sync...");
-      requestScheduleSync();
-      task->state = TASK_COMPLETED;
-      LOG("[RMS] Schedule sync completed");
-    }
-    else if (task->type == TASK_MQTT_KEEPALIVE) {
-      if (!mqttClient.connected()) {
-        LOG("[MQTT] Connection lost, reconnecting...");
-        reconnectMQTT();
-      } else {
-        LOG("[MQTT] Connection healthy");
-      }
-      task->state = TASK_COMPLETED;
-    }
-    else if (task->type == TASK_I2C_MONITOR) {
-      bool c1 = checkI2CConnection(0x20);
-      bool c2 = checkI2CConnection(0x21);
-      bool c3 = checkI2CConnection(0x22);
-      bool c4 = checkI2CConnection(0x23);
-      
-      if (!c1 || !c2 || !c3 || !c4) {
-        state.i2cErrorCount++;
-        state.i2cStable = false;
-        if (state.i2cErrorCount >= 3) {
-          recoverI2CBus();
-          state.i2cErrorCount = 0;
-        }
-      } else {
-        state.i2cStable = true;
-        state.i2cErrorCount = 0;
-      }
-      
-      logI2CStatus();
-      task->state = TASK_COMPLETED;
-      LOG("[RMS] I2C Monitor completed");
-    }
-  }
-  else if (task->state == TASK_RUNNING) {
-    if (task->type == TASK_BEL) {
-      if (millis() - task->repeatStartTime >= 30000) {
-        task->currentRepeat++;
-        
-        if (task->currentRepeat < task->repeat) {
-          dfPlayer.play(task->fileNumber.toInt());
-          task->repeatStartTime = millis();
-          LOG("[BEL] Repeat " + String(task->currentRepeat + 1) + "/" + String(task->repeat));
-        } else {
-          task->state = TASK_COMPLETED;
-          setAllRelays(false);
-          sendRelayStatusUpdate();
-          logBellEvent(task->fileNumber, task->volume, task->repeat, task->triggerType.c_str());
-          LOG("[RMS] Bel task completed (" + task->triggerType + ")");
-        }
-      }
-    }
-  }
-  
-  // Hapus task yang sudah selesai
-  if (task->state == TASK_COMPLETED) {
-    // Jika periodic, reset ke IDLE dan update lastExecutionTime
-    if (task->isPeriodic) {
-      task->state = TASK_IDLE;
-      task->lastExecutionTime = millis();
-      LOG("[QUEUE] Periodic task reset to IDLE");
-    } else {
-      // Non-periodic task: remove dari queue
-      removeTaskFromQueue(queue, count, index);
-      LOG("[QUEUE] Non-periodic task removed from queue");
-      return; // Index sudah di-adjust oleh removeTaskFromQueue
-    }
-  }
-  
-  // Move to next task (Round Robin)
-  index = (index + 1) % count;
-}
-
-// Helper function untuk remove task dari queue
-void removeTaskFromQueue(Task* queue, int& count, int& index) {
-  if (count <= 0) return;
-  
-  // Shift semua task setelah index ke kiri
-  for (int i = index; i < count - 1; i++) {
-    queue[i] = queue[i + 1];
-  }
-  
-  count--;
-  
-  // Adjust index jika perlu
-  if (index >= count && count > 0) {
-    index = 0;
-  }
-}
 
 void logBellEvent(String fileNumber, int volume, int repeat, const char* triggerType) {
   DateTime now = rtc.now();
@@ -1854,7 +1572,7 @@ void sendAckResponse(const char* status, const char* message) {
   }
 }
 
-// ========== Schedule Checking (Non-blocking with RMS) ==========
+// ========== Schedule Checking (Direct execution) ==========
 void checkSchedules() {
   static unsigned long lastCheck = 0;
   if (millis() - lastCheck < 1000) return;
@@ -1894,8 +1612,8 @@ void checkSchedules() {
           state.activeSchedules[j].index = i;
           state.activeSchedules[j].startTime = millis();
           
-          // Gunakan RMS task system (non-blocking)
-          createBelTask(
+          // Direct execution
+          playBelDirect(
             schedules[i].fileNumber,
             schedules[i].volume,
             schedules[i].repeat,

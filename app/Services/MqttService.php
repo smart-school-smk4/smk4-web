@@ -51,7 +51,6 @@ class MqttService
             if ($this->connect()) {
                 $this->subscribeToBellTopics();
                 $this->subscribeToAnnouncementTopics();
-                $this->subscribeToRmsTopics();
             }
         } catch (\Exception $e) {
             Log::warning('MQTT Initialization failed (will retry later): ' . $e->getMessage());
@@ -106,61 +105,7 @@ class MqttService
         }
     }
 
-    /**
-     * Subscribe to RMS statistics topics
-     */
-    protected function subscribeToRmsTopics(): void
-    {
-        $this->subscribe('smk4/rms/statistics', fn($t, $m) => $this->handleRmsStatistics($m));
-    }
 
-    /**
-     * Handle RMS task statistics from ESP32
-     */
-    protected function handleRmsStatistics(string $message): void
-    {
-        try {
-            $data = json_decode($message, true, 512, JSON_THROW_ON_ERROR);
-            
-            // Validate required fields
-            $validator = Validator::make($data, [
-                'timestamp' => 'required|integer',
-                'total_utilization' => 'required|numeric',
-                'schedulable' => 'required|boolean',
-                'free_heap' => 'required|integer',
-                'tasks' => 'required|array'
-            ]);
-
-            if ($validator->fails()) {
-                Log::warning('Invalid RMS statistics data', ['errors' => $validator->errors()]);
-                return;
-            }
-
-            // Store in database
-            \App\Models\TaskStatistic::create([
-                'boot_timestamp' => $data['timestamp'],
-                'total_utilization' => $data['total_utilization'],
-                'rms_bound' => $data['rms_bound'] ?? 75.6,
-                'schedulable' => $data['schedulable'],
-                'free_heap' => $data['free_heap'],
-                'tasks' => $data['tasks']
-            ]);
-
-            // Store latest in cache for dashboard
-            Cache::put('rms_latest_stats', $data, 120);
-
-            Log::info('RMS statistics stored', [
-                'utilization' => $data['total_utilization'],
-                'schedulable' => $data['schedulable'],
-                'tasks_count' => count($data['tasks'])
-            ]);
-
-        } catch (\JsonException $e) {
-            Log::error('Failed to parse RMS statistics JSON: ' . $e->getMessage());
-        } catch (\Exception $e) {
-            Log::error('Failed to handle RMS statistics: ' . $e->getMessage());
-        }
-    }
 
     /**
      * Handle announcement status updates from devices
